@@ -303,7 +303,6 @@ Le projet avance par jalons ; un jalon n'est terminé que lorsque ses tests pass
 
 ## Documentation
 
-- Cahier des charges de l'étude de cas (CDC)
 - Dossier d'architecture
 - Plan de réalisation par jalons
 - Source d'inspiration : [Modern Treasury — Building a Digital Wallet: From Ledger to Launch](https://www.moderntreasury.com/ebooks/building-a-digital-wallet-from-ledger-to-launch)
