@@ -94,20 +94,30 @@ Les plafonds sont de la **configuration datée**, jamais des constantes dans le 
 
 ## Architecture
 
-```text
-                 Back-office          Clients de test
-                       \                   /
-                  Passerelle (Traefik + Keycloak)
-                    /                       \
-           Service wallet  ───────►  Service paiements  ───────►  Simulateurs
-           (KYC, plafonds,            (ordres, sagas,              (PI-SPI, opérateurs,
-            frais, P2P)                inbox)                       banques)
-                    \                   |                             ▲
-                     ▼                  ▼                             │
-                        Service ledger  ◄──────────  Rapprochement ───┘
-                  (seul à écrire les soldes)       (jobs, couverture)
-                              │
-                 PostgreSQL · RabbitMQ (outbox) · MinIO
+```mermaid
+flowchart TB
+    BO[Back-office]
+    TEST[Clients de test]
+    GW["Passerelle<br/>Traefik + Keycloak"]
+
+    WALLET["Service wallet<br/>KYC, plafonds, frais, P2P"]
+    PAYMENTS["Service paiements<br/>ordres, sagas, inbox"]
+    LEDGER["Service ledger<br/>seul à écrire les soldes"]
+    RECON["Rapprochement<br/>jobs, couverture"]
+    SIM["Simulateurs<br/>PI-SPI, opérateurs, banques"]
+    INFRA[("PostgreSQL · RabbitMQ outbox · MinIO")]
+
+    BO --> GW
+    TEST --> GW
+    GW --> WALLET
+    GW --> PAYMENTS
+    WALLET --> PAYMENTS
+    PAYMENTS --> SIM
+    WALLET --> LEDGER
+    PAYMENTS --> LEDGER
+    RECON --> LEDGER
+    SIM --> RECON
+    LEDGER --> INFRA
 ```
 
 Principes :
