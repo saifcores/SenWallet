@@ -196,11 +196,12 @@ senwallet/
 git clone https://github.com/saifcores/SenWallet.git
 cd SenWallet
 
-# Compiler et lancer tous les tests
+# Compiler et lancer tous les tests (JAVA_HOME sur un JDK 25)
 ./gradlew build
 
 # Démarrer l'infrastructure et les services
-docker compose -f deploy/docker-compose.yml up -d
+cp deploy/.env.example deploy/.env
+docker compose -f deploy/docker-compose.yml up -d --wait
 ```
 
 ### Services locaux
@@ -280,7 +281,7 @@ Le projet avance par jalons ; un jalon n'est terminé que lorsque ses tests pass
 
 | Jalon | Contenu                                                  | État    |
 | ----- | -------------------------------------------------------- | ------- |
-| M0    | Socle du monorepo : Gradle, CI, Docker Compose, ArchUnit | À faire |
+| M0    | Socle du monorepo : Gradle, CI, Docker Compose, ArchUnit | Terminé |
 | M1    | Domaine du ledger en Java pur, tests de propriété        | À faire |
 | M2    | Persistance PostgreSQL, algorithme de posting, API REST  | À faire |
 | M3    | Outbox, RabbitMQ, contrats d'événements                  | À faire |
