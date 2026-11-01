@@ -16,7 +16,10 @@ import sn.senwallet.ledger.domain.repository.LedgerRepository;
 import sn.senwallet.ledger.domain.repository.LedgerTransactionRepository;
 import sn.senwallet.ledger.infrastructure.adapter.out.clock.SystemClock;
 
-/** The application layer has no Spring stereotypes; its handlers are declared here. */
+/**
+ * The application layer has no Spring stereotypes; its handlers are declared
+ * here.
+ */
 @Configuration(proxyBeanMethods = false)
 class UseCaseConfig {
 

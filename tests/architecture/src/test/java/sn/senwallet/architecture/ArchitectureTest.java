@@ -18,13 +18,15 @@ class ArchitectureTest {
         static final ArchRule domainIsPure = noClasses()
                         .that().resideInAPackage("..domain..")
                         .should().dependOnClassesThat()
-                        .resideInAnyPackage("org.springframework..", "jakarta.persistence..", "com.fasterxml..", "tools.jackson..");
+                        .resideInAnyPackage("org.springframework..", "jakarta.persistence..", "com.fasterxml..",
+                                        "tools.jackson..");
 
         @ArchTest
         static final ArchRule sharedKernelIsPure = noClasses()
                         .that().resideInAPackage("sn.senwallet.shared..")
                         .should().dependOnClassesThat()
-                        .resideInAnyPackage("org.springframework..", "jakarta.persistence..", "com.fasterxml..", "tools.jackson..");
+                        .resideInAnyPackage("org.springframework..", "jakarta.persistence..", "com.fasterxml..",
+                                        "tools.jackson..");
 
         @ArchTest
         static final ArchRule ledgerDomainIsTheInnermostLayer = noClasses()

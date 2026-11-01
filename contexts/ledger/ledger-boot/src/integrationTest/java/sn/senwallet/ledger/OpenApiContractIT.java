@@ -15,7 +15,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
-/** contracts/openapi/ledger.yaml is valid and lists exactly the operations the controllers serve. */
+/**
+ * contracts/openapi/ledger.yaml is valid and lists exactly the operations the
+ * controllers serve.
+ */
 class OpenApiContractIT extends LedgerIntegrationTest {
 
     @Autowired

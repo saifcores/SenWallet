@@ -9,7 +9,10 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import sn.senwallet.ledger.infrastructure.adapter.out.persistence.PartitionMaintainer;
 
-/** Creates upcoming {@code ledger_entries} partitions at startup, then every day (ADR-19). */
+/**
+ * Creates upcoming {@code ledger_entries} partitions at startup, then every day
+ * (ADR-19).
+ */
 @Component
 @EnableScheduling
 class PartitionJob implements ApplicationRunner {

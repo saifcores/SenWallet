@@ -7,7 +7,7 @@ plugins {
 val libs = the<VersionCatalogsExtension>().named("libs")
 
 dependencies {
-    implementation(platform(libs.findLibrary("spring-boot-bom").get()))
-    implementation(libs.findLibrary("spring-boot-starter").get())
-    testImplementation(libs.findLibrary("spring-boot-starter-test").get())
+    add("implementation", platform(libs.findLibrary("spring-boot-bom").get()))
+    add("implementation", libs.findLibrary("spring-boot-starter").get())
+    add("testImplementation", libs.findLibrary("spring-boot-starter-test").get())
 }

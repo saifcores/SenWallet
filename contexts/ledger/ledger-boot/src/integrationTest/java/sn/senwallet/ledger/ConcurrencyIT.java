@@ -80,7 +80,10 @@ class ConcurrencyIT extends LedgerIntegrationTest {
         assertThat(recompute.compareAll()).filteredOn(BalanceRecomputeQuery.Comparison::drifted).isEmpty();
     }
 
-    /** Opposite P2P transfers lock the same two rows in the same order, so they never deadlock. */
+    /**
+     * Opposite P2P transfers lock the same two rows in the same order, so they
+     * never deadlock.
+     */
     @Test
     void crossedTransfersCompleteWithoutDeadlock() throws Exception {
         var ledger = newLedger();

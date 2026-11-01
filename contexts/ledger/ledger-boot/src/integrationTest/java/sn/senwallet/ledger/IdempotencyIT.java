@@ -101,7 +101,8 @@ class IdempotencyIT extends LedgerIntegrationTest {
     }
 
     private void assertStoredOnce(String externalId) {
-        var headers = jdbc.sql("SELECT count(*) FROM ledger_transactions WHERE ledger_id = :ledger AND external_id = :id")
+        var headers = jdbc
+                .sql("SELECT count(*) FROM ledger_transactions WHERE ledger_id = :ledger AND external_id = :id")
                 .param("ledger", ledger.value()).param("id", externalId).query(Long.class).single();
         var entries = jdbc.sql("""
                 SELECT count(*) FROM ledger_entries e JOIN ledger_transactions t ON t.id = e.transaction_id
