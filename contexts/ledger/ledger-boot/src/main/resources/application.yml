@@ -4,6 +4,35 @@ spring:
   threads:
     virtual:
       enabled: true
+  # The service connects as the application role; Flyway runs as the owner
+  # role (ADR-20).
+  datasource:
+    url: jdbc:postgresql://${LEDGER_DB_HOST:localhost}:${LEDGER_DB_PORT:5432}/ledger
+    username: ${LEDGER_DB_USER:ledger_app}
+    password: ${LEDGER_DB_PASSWORD:ledger_app}
+    hikari:
+      maximum-pool-size: ${LEDGER_DB_POOL_SIZE:20}
+  flyway:
+    user: ${LEDGER_OWNER_USER:ledger_owner}
+    password: ${LEDGER_OWNER_PASSWORD:ledger_owner}
+    placeholders:
+      app_role: ${spring.datasource.username}
+  jackson:
+    property-naming-strategy: SNAKE_CASE
 
 server:
   port: 8002
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+ledger:
+  partitions:
+    months-ahead: 3

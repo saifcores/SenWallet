@@ -10,6 +10,9 @@ build/
 .vscode/
 out/
 bin/
+# Hexagonal packages such as adapter/out are sources, not IDE output.
+!**/src/**/out/
+!**/src/**/bin/
 
 # Environment
 .env

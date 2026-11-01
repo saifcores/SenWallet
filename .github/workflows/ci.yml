@@ -26,7 +26,8 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v6
 
-      - name: Build (unit tests, properties, ArchUnit)
+      # `check` includes integrationTest (Testcontainers; Docker is available on ubuntu-latest).
+      - name: Build (unit, property, ArchUnit and integration tests)
         run: ./gradlew build --console=plain
 
       - name: Upload test reports
@@ -49,12 +50,26 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Start infrastructure
-        run: docker compose -f deploy/docker-compose.yml up -d --wait
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "25"
 
-      - name: Check ledger database
-        run: docker exec senwallet-postgres pg_isready -U senwallet -d ledger
+      - uses: gradle/actions/setup-gradle@v6
 
-      - name: Stop infrastructure
+      - name: Build the ledger jar
+        run: ./gradlew :contexts:ledger:ledger-boot:bootJar --console=plain
+
+      - name: Start the stack
+        run: docker compose -f deploy/docker-compose.yml up -d --build --wait
+
+      - name: Check ledger health
+        run: curl -fsS http://localhost:8002/actuator/health
+
+      - name: Show logs
+        if: failure()
+        run: docker compose -f deploy/docker-compose.yml logs
+
+      - name: Stop the stack
         if: always()
         run: docker compose -f deploy/docker-compose.yml down -v

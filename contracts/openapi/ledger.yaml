@@ -1,0 +1,473 @@
+openapi: 3.1.0
+info:
+  title: SenWallet ledger
+  version: 1.0.0
+  description: |
+    Double-entry ledger service (dossier sections 3 and 4).
+
+    - Property names are snake_case; enums are lower-case strings.
+    - Amounts are integers in minor units of the currency (XOF has no
+      minor unit, so 1 500 XOF is `1500`).
+    - `POST /ledger_transactions` and the reversal endpoint are idempotent on
+      `(ledger_id, external_id)`: the first call answers 201, a retry with the
+      same body answers 200 with the stored transaction, a different body
+      answers 409 `idempotency_conflict`.
+    - Errors are RFC 9457 problem details whose `type` is
+      `urn:senwallet:problem:<code>`; clients branch on `type` or `code`.
+servers:
+  - url: http://localhost:8002
+
+tags:
+  - name: ledgers
+  - name: accounts
+  - name: transactions
+
+paths:
+  /ledgers:
+    post:
+      tags: [ledgers]
+      operationId: createLedger
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateLedgerRequest" }
+      responses:
+        "201":
+          description: Ledger created.
+          headers:
+            Location: { $ref: "#/components/headers/Location" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Ledger" }
+        "400": { $ref: "#/components/responses/InvalidRequest" }
+
+  /ledgers/{id}:
+    get:
+      tags: [ledgers]
+      operationId: getLedger
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: The ledger.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Ledger" }
+        "400": { $ref: "#/components/responses/InvalidRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /ledger_accounts:
+    post:
+      tags: [accounts]
+      operationId: openAccount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OpenAccountRequest" }
+      responses:
+        "201":
+          description: Account opened with zero balances.
+          headers:
+            Location: { $ref: "#/components/headers/Location" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Account" }
+        "400": { $ref: "#/components/responses/InvalidRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /ledger_accounts/{id}:
+    get:
+      tags: [accounts]
+      operationId: getAccount
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: The account and its current balances.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Account" }
+        "400": { $ref: "#/components/responses/InvalidRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /ledger_accounts/{id}/balances:
+    get:
+      tags: [accounts]
+      operationId: getBalances
+      description: |
+        Current balances read from the counters, or, with `as_of`, balances
+        recomputed from the entries as they were at that instant (a
+        transaction counts as posted from its `posted_at`, and as pending from
+        its `effective_at` until it is posted or archived).
+      parameters:
+        - $ref: "#/components/parameters/Id"
+        - name: as_of
+          in: query
+          required: false
+          schema: { type: string, format: date-time }
+      responses:
+        "200":
+          description: Balances.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Balances" }
+        "400": { $ref: "#/components/responses/InvalidRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /ledger_transactions:
+    post:
+      tags: [transactions]
+      operationId: postTransaction
+      description: |
+        One PostgreSQL transaction: idempotent insert, sorted row locks,
+        balance conditions, entries and counters. If a condition fails,
+        nothing is written and the answer is 422 `balance_condition_violated`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PostTransactionRequest" }
+      responses:
+        "201":
+          description: Transaction written by this call.
+          headers:
+            Location: { $ref: "#/components/headers/Location" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TransactionWithBalances" }
+        "200":
+          description: Replay; the stored transaction and current balances.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TransactionWithBalances" }
+        "400": { $ref: "#/components/responses/InvalidRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /ledger_transactions/{id}:
+    get:
+      tags: [transactions]
+      operationId: getTransaction
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: The transaction and its entries.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Transaction" }
+        "400": { $ref: "#/components/responses/InvalidRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [transactions]
+      operationId: transitionTransaction
+      description: |
+        `pending -> posted` settles the amounts, `pending -> archived`
+        releases them. Asking for the status the transaction already has is a
+        200 no-op, so callers can retry; any other change is 409
+        `illegal_transition`.
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TransitionRequest" }
+      responses:
+        "200":
+          description: Transaction in the requested status.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TransactionWithBalances" }
+        "400": { $ref: "#/components/responses/InvalidRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /ledger_transactions/{id}/reversal:
+    post:
+      tags: [transactions]
+      operationId: reverseTransaction
+      description: |
+        Posts a new transaction with every direction flipped. Only a posted
+        transaction can be reversed, and only once. `external_id` defaults to
+        `reversal:<id>`.
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReversalRequest" }
+      responses:
+        "201":
+          description: Reversal written by this call.
+          headers:
+            Location: { $ref: "#/components/headers/Location" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TransactionWithBalances" }
+        "200":
+          description: Replay of the same reversal.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TransactionWithBalances" }
+        "400": { $ref: "#/components/responses/InvalidRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+components:
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  headers:
+    Location:
+      description: Path of the created resource.
+      schema: { type: string }
+
+  responses:
+    InvalidRequest:
+      description: "`invalid_request`: missing or malformed field, unreadable body or parameter."
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    NotFound:
+      description: "`not_found`: unknown ledger, account or transaction."
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    Conflict:
+      description: |
+        `idempotency_conflict`, `illegal_transition`,
+        `transaction_not_reversible` or `transaction_already_reversed`.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    Unprocessable:
+      description: |
+        `unbalanced`, `balance_condition_violated`, `account_not_postable` or
+        `currency_mismatch`. Nothing was written.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+
+  schemas:
+    Amount:
+      type: integer
+      format: int64
+      description: Minor units of the currency.
+
+    Metadata:
+      type: object
+      additionalProperties: { type: string }
+
+    CreateLedgerRequest:
+      type: object
+      required: [name, environment]
+      properties:
+        name: { type: string, minLength: 1 }
+        environment: { type: string, enum: [live, test] }
+
+    Ledger:
+      type: object
+      required: [id, name, environment, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        environment: { type: string, enum: [live, test] }
+        created_at: { type: string, format: date-time }
+
+    OpenAccountRequest:
+      type: object
+      required: [ledger_id, name, normal_balance]
+      properties:
+        ledger_id: { type: string, format: uuid }
+        name: { type: string, minLength: 1 }
+        normal_balance: { type: string, enum: [debit, credit] }
+        currency: { type: string, default: XOF }
+        balance_mode:
+          type: string
+          enum: [sync, async]
+          default: sync
+          description: Async accounts take no lock and cannot carry a balance condition.
+        metadata: { $ref: "#/components/schemas/Metadata" }
+
+    Account:
+      type: object
+      required: [id, ledger_id, name, normal_balance, currency, balance_mode, status, metadata, balances]
+      properties:
+        id: { type: string, format: uuid }
+        ledger_id: { type: string, format: uuid }
+        name: { type: string }
+        normal_balance: { type: string, enum: [debit, credit] }
+        currency: { type: string, example: XOF }
+        balance_mode: { type: string, enum: [sync, async] }
+        status: { type: string, enum: [active, inactive] }
+        metadata: { $ref: "#/components/schemas/Metadata" }
+        balances: { $ref: "#/components/schemas/Balances" }
+
+    Balances:
+      type: object
+      required: [account_id, posted, pending, available, lock_version]
+      properties:
+        account_id: { type: string, format: uuid }
+        posted:
+          allOf: [{ $ref: "#/components/schemas/Amount" }]
+          description: Settled entries only.
+        pending:
+          allOf: [{ $ref: "#/components/schemas/Amount" }]
+          description: Settled plus in-flight entries.
+        available:
+          allOf: [{ $ref: "#/components/schemas/Amount" }]
+          description: Settled minus in-flight outflows.
+        lock_version:
+          type: integer
+          format: int64
+          description: Bumped by every posting or transition on the account; 0 for as_of balances.
+        as_of:
+          type: string
+          format: date-time
+          description: Present only when the balances were requested as of an instant.
+
+    EntryRequest:
+      type: object
+      required: [account_id, direction, amount]
+      properties:
+        account_id: { type: string, format: uuid }
+        direction: { type: string, enum: [debit, credit] }
+        amount:
+          allOf: [{ $ref: "#/components/schemas/Amount" }]
+          minimum: 1
+
+    Condition:
+      type: object
+      required: [account_id, balance, operator, amount]
+      description: Checked on the account's balances after the transaction is applied.
+      properties:
+        account_id: { type: string, format: uuid }
+        balance: { type: string, enum: [posted, pending, available] }
+        operator: { type: string, enum: [gt, gte, eq, lte, lt] }
+        amount: { $ref: "#/components/schemas/Amount" }
+
+    PostTransactionRequest:
+      type: object
+      required: [ledger_id, external_id, entries]
+      properties:
+        ledger_id: { type: string, format: uuid }
+        external_id:
+          type: string
+          minLength: 1
+          description: Deterministic idempotency key, unique per ledger (e.g. `p2p:<transfer_id>`).
+        status: { type: string, enum: [pending, posted], default: posted }
+        currency: { type: string, default: XOF }
+        description: { type: string }
+        metadata: { $ref: "#/components/schemas/Metadata" }
+        entries:
+          type: array
+          minItems: 2
+          items: { $ref: "#/components/schemas/EntryRequest" }
+        conditions:
+          type: array
+          items: { $ref: "#/components/schemas/Condition" }
+
+    TransitionRequest:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [posted, archived] }
+
+    ReversalRequest:
+      type: object
+      properties:
+        external_id: { type: string, minLength: 1 }
+        conditions:
+          type: array
+          items: { $ref: "#/components/schemas/Condition" }
+
+    Entry:
+      type: object
+      required: [account_id, direction, amount]
+      properties:
+        account_id: { type: string, format: uuid }
+        direction: { type: string, enum: [debit, credit] }
+        amount: { $ref: "#/components/schemas/Amount" }
+
+    Transaction:
+      type: object
+      required: [id, ledger_id, external_id, status, currency, metadata, effective_at, entries]
+      properties:
+        id: { type: string, format: uuid }
+        ledger_id: { type: string, format: uuid }
+        external_id: { type: string }
+        status: { type: string, enum: [pending, posted, archived] }
+        currency: { type: string, example: XOF }
+        description: { type: [string, "null"] }
+        metadata: { $ref: "#/components/schemas/Metadata" }
+        reverses_id: { type: [string, "null"], format: uuid }
+        effective_at: { type: string, format: date-time }
+        posted_at: { type: [string, "null"], format: date-time }
+        archived_at: { type: [string, "null"], format: date-time }
+        entries:
+          type: array
+          items: { $ref: "#/components/schemas/Entry" }
+
+    TransactionWithBalances:
+      allOf:
+        - $ref: "#/components/schemas/Transaction"
+        - type: object
+          required: [balances]
+          properties:
+            balances:
+              type: array
+              description: Balances of the accounts touched, after this call.
+              items: { $ref: "#/components/schemas/Balances" }
+
+    Problem:
+      type: object
+      required: [type, title, status, code]
+      properties:
+        type:
+          type: string
+          format: uri
+          example: urn:senwallet:problem:balance_condition_violated
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+        code:
+          type: string
+          enum:
+            - invalid_request
+            - not_found
+            - unbalanced
+            - balance_condition_violated
+            - account_not_postable
+            - currency_mismatch
+            - idempotency_conflict
+            - illegal_transition
+            - transaction_not_reversible
+            - transaction_already_reversed
+        field: { type: string, description: "invalid_request: the offending field." }
+        account_id: { type: string, format: uuid }
+        external_id: { type: string }
+        condition: { $ref: "#/components/schemas/ProblemCondition" }
+        actual:
+          allOf: [{ $ref: "#/components/schemas/Amount" }]
+          description: "balance_condition_violated: the balance the transaction would have produced."
+        from: { type: string }
+        to: { type: string }
+
+    ProblemCondition:
+      type: object
+      properties:
+        balance: { type: string, enum: [posted, pending, available] }
+        operator: { type: string, enum: [gt, gte, eq, lte, lt] }
+        amount: { $ref: "#/components/schemas/Amount" }
