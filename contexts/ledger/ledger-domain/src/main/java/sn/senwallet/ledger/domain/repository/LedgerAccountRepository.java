@@ -1,5 +1,6 @@
 package sn.senwallet.ledger.domain.repository;
 
+import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.SortedSet;
@@ -11,10 +12,15 @@ public interface LedgerAccountRepository {
     Optional<LedgerAccount> findById(AccountId id);
 
     /**
-     * Loads the given accounts in ascending id order (the lock order); missing
-     * accounts are simply absent from the result.
+     * Loads and locks the given accounts in ascending id order, so two postings
+     * touching the same accounts never deadlock; missing accounts are absent from
+     * the result. Locks are held until the surrounding transaction ends.
      */
-    Map<AccountId, LedgerAccount> findAllByIdsSorted(SortedSet<AccountId> ids);
+    Map<AccountId, LedgerAccount> lockForUpdateSorted(SortedSet<AccountId> ids);
 
-    void save(LedgerAccount account);
+    /** Inserts a new account with zero balances. */
+    void insert(LedgerAccount account);
+
+    /** Writes the counters and lock version of accounts loaded by {@link #lockForUpdateSorted}. */
+    void saveBalances(Collection<LedgerAccount> accounts);
 }

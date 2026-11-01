@@ -13,7 +13,7 @@ import sn.senwallet.shared.id.AccountId;
 
 /**
  * Stores copies, like a database would: changes to a loaded account are
- * invisible until it is saved.
+ * invisible until it is saved. Locking is a no-op: callers are single-threaded.
  */
 public final class InMemoryLedgerAccountRepository implements LedgerAccountRepository {
 
@@ -25,7 +25,7 @@ public final class InMemoryLedgerAccountRepository implements LedgerAccountRepos
     }
 
     @Override
-    public Map<AccountId, LedgerAccount> findAllByIdsSorted(SortedSet<AccountId> ids) {
+    public Map<AccountId, LedgerAccount> lockForUpdateSorted(SortedSet<AccountId> ids) {
         var result = new LinkedHashMap<AccountId, LedgerAccount>();
         for (var id : ids) {
             var account = accounts.get(id);
@@ -37,6 +37,18 @@ public final class InMemoryLedgerAccountRepository implements LedgerAccountRepos
     }
 
     @Override
+    public void insert(LedgerAccount account) {
+        if (accounts.putIfAbsent(account.id(), copy(account)) != null) {
+            throw new IllegalStateException("account already exists: " + account.id());
+        }
+    }
+
+    @Override
+    public void saveBalances(Collection<LedgerAccount> toSave) {
+        toSave.forEach(this::save);
+    }
+
+    /** Inserts or replaces an account. */
     public void save(LedgerAccount account) {
         accounts.put(account.id(), copy(account));
     }
@@ -52,11 +64,13 @@ public final class InMemoryLedgerAccountRepository implements LedgerAccountRepos
     private static LedgerAccount copy(LedgerAccount account) {
         return LedgerAccount.restore(
                 account.id(),
+                account.ledgerId(),
                 account.name(),
                 account.normalBalance(),
                 account.currency(),
                 account.balanceMode(),
                 account.status(),
+                account.metadata(),
                 account.balances());
     }
 }

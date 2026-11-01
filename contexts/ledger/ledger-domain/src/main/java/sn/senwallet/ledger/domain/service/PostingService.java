@@ -98,6 +98,9 @@ public final class PostingService {
             if (account == null) {
                 throw new AccountNotPostableException(id, "not loaded");
             }
+            if (!account.ledgerId().equals(txn.ledgerId())) {
+                throw new AccountNotPostableException(id, "belongs to ledger " + account.ledgerId());
+            }
             if (!account.isActive()) {
                 throw new AccountNotPostableException(id, "status " + account.status());
             }
