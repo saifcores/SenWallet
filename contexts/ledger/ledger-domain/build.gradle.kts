@@ -1,7 +1,9 @@
 plugins {
     id("senwallet.java-library")
+    `java-test-fixtures`
 }
 
 dependencies {
-    implementation(project(":platform:shared-kernel"))
+    api(project(":platform:shared-kernel"))
+    testImplementation(libs.jqwik)
 }
