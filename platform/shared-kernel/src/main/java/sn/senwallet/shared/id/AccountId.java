@@ -3,7 +3,8 @@ package sn.senwallet.shared.id;
 import java.util.Objects;
 import java.util.UUID;
 
-public record AccountId(UUID value) {
+/** Ordered so that accounts can always be locked in the same sequence. */
+public record AccountId(UUID value) implements Comparable<AccountId> {
 
     public AccountId {
         Objects.requireNonNull(value, "value");
@@ -15,6 +16,11 @@ public record AccountId(UUID value) {
 
     public static AccountId of(String value) {
         return new AccountId(UUID.fromString(value));
+    }
+
+    @Override
+    public int compareTo(AccountId other) {
+        return value.compareTo(other.value);
     }
 
     @Override

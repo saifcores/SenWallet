@@ -13,14 +13,11 @@ import com.tngtech.archunit.lang.ArchRule;
 @AnalyzeClasses(packages = "sn.senwallet", importOptions = ImportOption.DoNotIncludeTests.class)
 class ArchitectureTest {
 
-        // TODO(M1): drop allowEmptyShould once ledger-domain contains its first
-        // classes.
         @ArchTest
         static final ArchRule domainIsPure = noClasses()
                         .that().resideInAPackage("..domain..")
                         .should().dependOnClassesThat()
-                        .resideInAnyPackage("org.springframework..", "jakarta.persistence..", "com.fasterxml..")
-                        .allowEmptyShould(true);
+                        .resideInAnyPackage("org.springframework..", "jakarta.persistence..", "com.fasterxml..");
 
         @ArchTest
         static final ArchRule sharedKernelIsPure = noClasses()

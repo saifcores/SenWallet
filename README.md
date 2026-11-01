@@ -282,7 +282,7 @@ Le projet avance par jalons ; un jalon n'est terminé que lorsque ses tests pass
 | Jalon | Contenu                                                  | État    |
 | ----- | -------------------------------------------------------- | ------- |
 | M0    | Socle du monorepo : Gradle, CI, Docker Compose, ArchUnit | Terminé |
-| M1    | Domaine du ledger en Java pur, tests de propriété        | À faire |
+| M1    | Domaine du ledger en Java pur, tests de propriété        | Terminé |
 | M2    | Persistance PostgreSQL, algorithme de posting, API REST  | À faire |
 | M3    | Outbox, RabbitMQ, contrats d'événements                  | À faire |
 | M4    | Contexte wallet : KYC, plafonds, frais, P2P              | À faire |
