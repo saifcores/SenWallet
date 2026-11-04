@@ -25,6 +25,7 @@ import sn.senwallet.ledger.domain.repository.inmemory.InMemoryLedgerAccountRepos
 import sn.senwallet.ledger.domain.repository.inmemory.InMemoryLedgerTransactionRepository;
 import sn.senwallet.ledger.domain.service.PostingService;
 import sn.senwallet.shared.id.AccountId;
+import sn.senwallet.shared.id.LedgerId;
 import sn.senwallet.shared.money.Currency;
 import sn.senwallet.shared.money.Money;
 
@@ -33,6 +34,8 @@ import sn.senwallet.shared.money.Money;
  * sends 50 000 to Binta (500 fee), and Binta cashes out 50 000 with Orange.
  */
 class SendCashScenarioTest {
+
+    private static final LedgerId LEDGER = LedgerId.newId();
 
     private static final Instant T0 = Instant.parse("2026-11-02T09:00:00Z");
 
@@ -111,15 +114,15 @@ class SendCashScenarioTest {
     }
 
     private AccountId open(String name, NormalBalance normal, BalanceMode mode) {
-        var account = LedgerAccount.open(AccountId.newId(), name, normal, Currency.XOF, mode);
+        var account = LedgerAccount.open(AccountId.newId(), LEDGER, name, normal, Currency.XOF, mode);
         accounts.save(account);
         return account.id();
     }
 
     private LedgerTransaction post(
             String externalId, TransactionStatus status, List<BalanceCondition> conditions, Entry... entries) {
-        var txn = LedgerTransaction.open(ExternalId.of(externalId), List.of(entries), status, T0);
-        var loaded = accounts.findAllByIdsSorted(txn.accountIds());
+        var txn = LedgerTransaction.open(LEDGER, ExternalId.of(externalId), List.of(entries), status, T0);
+        var loaded = accounts.lockForUpdateSorted(txn.accountIds());
         posting.apply(txn, loaded, conditions);
         accounts.saveAll(loaded.values());
         transactions.save(txn);
@@ -129,7 +132,7 @@ class SendCashScenarioTest {
     private void settle(ExternalId externalId) {
         var txn = transactions.findByExternalId(externalId).orElseThrow();
         txn.pullEvents();
-        var loaded = accounts.findAllByIdsSorted(txn.accountIds());
+        var loaded = accounts.lockForUpdateSorted(txn.accountIds());
         posting.settle(txn, loaded, T0.plusSeconds(120));
         accounts.saveAll(loaded.values());
         transactions.save(txn);

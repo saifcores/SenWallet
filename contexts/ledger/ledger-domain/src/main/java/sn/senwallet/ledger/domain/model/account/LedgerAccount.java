@@ -1,39 +1,47 @@
 package sn.senwallet.ledger.domain.model.account;
 
+import java.util.Map;
 import java.util.Objects;
 import sn.senwallet.shared.id.AccountId;
+import sn.senwallet.shared.id.LedgerId;
 import sn.senwallet.shared.money.Currency;
 import sn.senwallet.shared.money.CurrencyMismatchException;
 import sn.senwallet.shared.money.Money;
 
 /**
- * A ledger account and its counters. Its currency and normal balance never
- * change.
+ * A ledger account and its counters. Its ledger, currency and normal balance
+ * never change.
  */
 public final class LedgerAccount {
 
     private final AccountId id;
+    private final LedgerId ledgerId;
     private final String name;
     private final NormalBalance normalBalance;
     private final Currency currency;
     private final BalanceMode balanceMode;
     private final AccountStatus status;
+    private final Map<String, String> metadata;
     private Balances balances;
 
     private LedgerAccount(
             AccountId id,
+            LedgerId ledgerId,
             String name,
             NormalBalance normalBalance,
             Currency currency,
             BalanceMode balanceMode,
             AccountStatus status,
+            Map<String, String> metadata,
             Balances balances) {
         this.id = Objects.requireNonNull(id, "id");
+        this.ledgerId = Objects.requireNonNull(ledgerId, "ledgerId");
         this.name = Objects.requireNonNull(name, "name");
         this.normalBalance = Objects.requireNonNull(normalBalance, "normalBalance");
         this.currency = Objects.requireNonNull(currency, "currency");
         this.balanceMode = Objects.requireNonNull(balanceMode, "balanceMode");
         this.status = Objects.requireNonNull(status, "status");
+        this.metadata = Map.copyOf(Objects.requireNonNull(metadata, "metadata"));
         this.balances = Objects.requireNonNull(balances, "balances");
         if (name.isBlank()) {
             throw new IllegalArgumentException("account name must not be blank");
@@ -44,21 +52,39 @@ public final class LedgerAccount {
     }
 
     public static LedgerAccount open(
-            AccountId id, String name, NormalBalance normalBalance, Currency currency, BalanceMode balanceMode) {
-        return new LedgerAccount(
-                id, name, normalBalance, currency, balanceMode, AccountStatus.ACTIVE, Balances.zero(currency));
+            AccountId id,
+            LedgerId ledgerId,
+            String name,
+            NormalBalance normalBalance,
+            Currency currency,
+            BalanceMode balanceMode) {
+        return open(id, ledgerId, name, normalBalance, currency, balanceMode, Map.of());
+    }
+
+    public static LedgerAccount open(
+            AccountId id,
+            LedgerId ledgerId,
+            String name,
+            NormalBalance normalBalance,
+            Currency currency,
+            BalanceMode balanceMode,
+            Map<String, String> metadata) {
+        return new LedgerAccount(id, ledgerId, name, normalBalance, currency, balanceMode, AccountStatus.ACTIVE,
+                metadata, Balances.zero(currency));
     }
 
     /** Rebuilds an account from storage. */
     public static LedgerAccount restore(
             AccountId id,
+            LedgerId ledgerId,
             String name,
             NormalBalance normalBalance,
             Currency currency,
             BalanceMode balanceMode,
             AccountStatus status,
+            Map<String, String> metadata,
             Balances balances) {
-        return new LedgerAccount(id, name, normalBalance, currency, balanceMode, status, balances);
+        return new LedgerAccount(id, ledgerId, name, normalBalance, currency, balanceMode, status, metadata, balances);
     }
 
     /**
@@ -97,6 +123,10 @@ public final class LedgerAccount {
         return id;
     }
 
+    public LedgerId ledgerId() {
+        return ledgerId;
+    }
+
     public String name() {
         return name;
     }
@@ -115,6 +145,10 @@ public final class LedgerAccount {
 
     public AccountStatus status() {
         return status;
+    }
+
+    public Map<String, String> metadata() {
+        return metadata;
     }
 
     public Balances balances() {

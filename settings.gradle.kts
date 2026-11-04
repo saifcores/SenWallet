@@ -21,6 +21,7 @@ rootProject.name = "senwallet"
 
 include(
     ":platform:shared-kernel",
+    ":platform:test-support",
     ":contexts:ledger:ledger-domain",
     ":contexts:ledger:ledger-application",
     ":contexts:ledger:ledger-infrastructure",

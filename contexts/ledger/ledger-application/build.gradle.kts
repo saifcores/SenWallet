@@ -6,4 +6,6 @@ dependencies {
     api(project(":contexts:ledger:ledger-domain"))
     implementation(platform(libs.spring.boot.bom))
     implementation(libs.spring.tx)
+
+    testImplementation(testFixtures(project(":contexts:ledger:ledger-domain")))
 }

@@ -27,20 +27,20 @@ import sn.senwallet.ledger.domain.model.transaction.ExternalId;
 import sn.senwallet.ledger.domain.model.transaction.LedgerTransaction;
 import sn.senwallet.ledger.domain.model.transaction.TransactionStatus;
 import sn.senwallet.shared.id.AccountId;
+import sn.senwallet.shared.id.LedgerId;
 import sn.senwallet.shared.money.Currency;
 import sn.senwallet.shared.money.Money;
 
 class PostingServiceTest {
 
+    private static final LedgerId LEDGER = LedgerId.newId();
+
     private static final Instant NOW = Instant.parse("2026-11-01T10:00:00Z");
 
     private final PostingService posting = new PostingService();
-    private final LedgerAccount treasury = LedgerAccount.open(
-            AccountId.newId(), "treasury", NormalBalance.DEBIT, Currency.XOF, BalanceMode.SYNC);
-    private final LedgerAccount wallet = LedgerAccount.open(
-            AccountId.newId(), "wallet", NormalBalance.CREDIT, Currency.XOF, BalanceMode.SYNC);
-    private final LedgerAccount revenue = LedgerAccount.open(
-            AccountId.newId(), "revenue", NormalBalance.CREDIT, Currency.XOF, BalanceMode.ASYNC);
+    private final LedgerAccount treasury = LedgerAccount.open(AccountId.newId(), LEDGER, "treasury", NormalBalance.DEBIT, Currency.XOF, BalanceMode.SYNC);
+    private final LedgerAccount wallet = LedgerAccount.open(AccountId.newId(), LEDGER, "wallet", NormalBalance.CREDIT, Currency.XOF, BalanceMode.SYNC);
+    private final LedgerAccount revenue = LedgerAccount.open(AccountId.newId(), LEDGER, "revenue", NormalBalance.CREDIT, Currency.XOF, BalanceMode.ASYNC);
 
     private Map<AccountId, LedgerAccount> accounts() {
         var map = new HashMap<AccountId, LedgerAccount>();
@@ -52,8 +52,7 @@ class PostingServiceTest {
 
     private static LedgerTransaction transfer(
             LedgerAccount from, LedgerAccount to, long amount, TransactionStatus status) {
-        return LedgerTransaction.open(
-                ExternalId.of("t:" + AccountId.newId()),
+        return LedgerTransaction.open(LEDGER, ExternalId.of("t:" + AccountId.newId()),
                 List.of(Entry.debit(from.id(), Amount.xof(amount)), Entry.credit(to.id(), Amount.xof(amount))),
                 status,
                 NOW);
@@ -108,8 +107,7 @@ class PostingServiceTest {
     @Test
     void conditionSeesTheWholeTransactionNotEachEntry() {
         fundWallet(1_000);
-        var txn = LedgerTransaction.open(
-                ExternalId.of("netting"),
+        var txn = LedgerTransaction.open(LEDGER, ExternalId.of("netting"),
                 List.of(
                         Entry.debit(wallet.id(), Amount.xof(1_500)),
                         Entry.credit(wallet.id(), Amount.xof(1_000)),
@@ -192,8 +190,8 @@ class PostingServiceTest {
                 .isInstanceOf(AccountNotPostableException.class)
                 .hasMessageContaining("not loaded");
 
-        var inactive = LedgerAccount.restore(wallet.id(), "wallet", NormalBalance.CREDIT, Currency.XOF,
-                BalanceMode.SYNC, AccountStatus.INACTIVE, Balances.zero(Currency.XOF));
+        var inactive = LedgerAccount.restore(wallet.id(), LEDGER, "wallet", NormalBalance.CREDIT, Currency.XOF,
+                BalanceMode.SYNC, AccountStatus.INACTIVE, Map.of(), Balances.zero(Currency.XOF));
         var withInactive = new HashMap<>(accounts());
         withInactive.put(wallet.id(), inactive);
 
@@ -201,6 +199,20 @@ class PostingServiceTest {
                 .isInstanceOf(AccountNotPostableException.class)
                 .hasMessageContaining("INACTIVE");
         assertThat(treasury.balances().lockVersion()).isZero();
+    }
+
+    @Test
+    void refusesAccountsOfAnotherLedger() {
+        var foreign = LedgerAccount.open(
+                AccountId.newId(), LedgerId.newId(), "foreign", NormalBalance.CREDIT, Currency.XOF, BalanceMode.SYNC);
+        var txn = transfer(treasury, foreign, 100, POSTED);
+        var withForeign = new HashMap<>(accounts());
+        withForeign.put(foreign.id(), foreign);
+
+        assertThatThrownBy(() -> posting.apply(txn, withForeign, List.of()))
+                .isInstanceOf(AccountNotPostableException.class)
+                .hasMessageContaining("ledger");
+        assertThat(foreign.balances().lockVersion()).isZero();
     }
 
     @Test

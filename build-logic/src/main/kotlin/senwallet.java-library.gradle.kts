@@ -1,3 +1,5 @@
+import org.gradle.api.plugins.JavaPluginExtension
+
 // Plain Java module: no Spring. Used by every domain, application and kernel module.
 plugins {
     `java-library`
@@ -6,17 +8,17 @@ plugins {
 
 val libs = the<VersionCatalogsExtension>().named("libs")
 
-java {
+extensions.configure<JavaPluginExtension> {
     toolchain {
         languageVersion = JavaLanguageVersion.of(libs.findVersion("java").get().requiredVersion)
     }
 }
 
 dependencies {
-    testImplementation(platform(libs.findLibrary("junit-bom").get()))
-    testImplementation(libs.findLibrary("junit-jupiter").get())
-    testImplementation(libs.findLibrary("assertj-core").get())
-    testRuntimeOnly(libs.findLibrary("junit-platform-launcher").get())
+    add("testImplementation", platform(libs.findLibrary("junit-bom").get()))
+    add("testImplementation", libs.findLibrary("junit-jupiter").get())
+    add("testImplementation", libs.findLibrary("assertj-core").get())
+    add("testRuntimeOnly", libs.findLibrary("junit-platform-launcher").get())
 }
 
 tasks.withType<JavaCompile>().configureEach {

@@ -199,10 +199,16 @@ cd SenWallet
 # Compiler et lancer tous les tests (JAVA_HOME sur un JDK 25)
 ./gradlew build
 
-# Démarrer l'infrastructure et les services
+# Démarrer l'infrastructure et les services (le jar du ledger d'abord)
+./gradlew :contexts:ledger:ledger-boot:bootJar
 cp deploy/.env.example deploy/.env
-docker compose -f deploy/docker-compose.yml up -d --wait
+docker compose -f deploy/docker-compose.yml up -d --build --wait
+curl http://localhost:8002/actuator/health
 ```
+
+> Depuis M2, le script d'initialisation crée deux rôles (`ledger_owner`, `ledger_app`, ADR-20). Un volume créé avant M2 doit être recréé une fois : `docker compose -f deploy/docker-compose.yml down -v`.
+
+Le contrat de l'API du ledger est dans [`contracts/openapi/ledger.yaml`](contracts/openapi/ledger.yaml).
 
 ### Services locaux
 
@@ -260,7 +266,7 @@ Modes disponibles : `reject`, `latency`, `timeout_then_success`, `timeout_then_f
 
 ```bash
 ./gradlew test               # unitaires + propriétés (jqwik) + ArchUnit
-./gradlew integrationTest    # Testcontainers : PostgreSQL, RabbitMQ, simulateurs
+./gradlew integrationTest    # Testcontainers (Docker requis) ; inclus dans ./gradlew build
 k6 run tests/load/p2p.js     # charge (à partir du jalon M10)
 ```
 
@@ -283,7 +289,7 @@ Le projet avance par jalons ; un jalon n'est terminé que lorsque ses tests pass
 | ----- | -------------------------------------------------------- | ------- |
 | M0    | Socle du monorepo : Gradle, CI, Docker Compose, ArchUnit | Terminé |
 | M1    | Domaine du ledger en Java pur, tests de propriété        | Terminé |
-| M2    | Persistance PostgreSQL, algorithme de posting, API REST  | À faire |
+| M2    | Persistance PostgreSQL, algorithme de posting, API REST  | Terminé |
 | M3    | Outbox, RabbitMQ, contrats d'événements                  | À faire |
 | M4    | Contexte wallet : KYC, plafonds, frais, P2P              | À faire |
 | M5    | Passerelle Traefik, Keycloak, jetons de service          | À faire |

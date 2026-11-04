@@ -37,6 +37,7 @@ import sn.senwallet.ledger.domain.repository.inmemory.InMemoryLedgerTransactionR
 import sn.senwallet.ledger.domain.service.PostingService;
 import sn.senwallet.shared.id.AccountId;
 import sn.senwallet.shared.id.TransactionId;
+import sn.senwallet.shared.id.LedgerId;
 import sn.senwallet.shared.money.Currency;
 import sn.senwallet.shared.money.Money;
 
@@ -45,6 +46,8 @@ import sn.senwallet.shared.money.Money;
  * balanced and its counters agree with its entries.
  */
 class LedgerInvariantProperties {
+
+    private static final LedgerId LEDGER = LedgerId.newId();
 
     private static final int ACCOUNT_COUNT = 10;
     private static final int TRANSACTIONS_PER_TRY = 1_000;
@@ -61,7 +64,7 @@ class LedgerInvariantProperties {
     private static LedgerAccount account(int index) {
         var normal = index < 6 ? NormalBalance.CREDIT : NormalBalance.DEBIT;
         var mode = index == 5 ? BalanceMode.ASYNC : BalanceMode.SYNC;
-        return LedgerAccount.open(AccountId.newId(), "account-" + index, normal, Currency.XOF, mode);
+        return LedgerAccount.open(AccountId.newId(), LEDGER, "account-" + index, normal, Currency.XOF, mode);
     }
 
     // 10 tries x 1 000 transactions = 10 000 random transactions.
@@ -78,10 +81,10 @@ class LedgerInvariantProperties {
 
         for (int i = 0; i < steps.size(); i++) {
             var step = steps.get(i);
-            var txn = LedgerTransaction.open(ExternalId.of("prop:" + i), toEntries(step, ids), step.status(), NOW);
+            var txn = LedgerTransaction.open(LEDGER, ExternalId.of("prop:" + i), toEntries(step, ids), step.status(), NOW);
             assertThat(txn.totalDebits()).isEqualTo(txn.totalCredits());
 
-            var loaded = accounts.findAllByIdsSorted(txn.accountIds());
+            var loaded = accounts.lockForUpdateSorted(txn.accountIds());
             var before = balancesOf(loaded);
             try {
                 posting.apply(txn, loaded, step.guarded() ? noOverdraft(txn, loaded) : List.of());
@@ -98,7 +101,7 @@ class LedgerInvariantProperties {
 
             if (step.resolution() != Resolution.NONE && !pending.isEmpty()) {
                 var resolved = transactions.findById(pending.remove(step.pick() % pending.size())).orElseThrow();
-                var touched = accounts.findAllByIdsSorted(resolved.accountIds());
+                var touched = accounts.lockForUpdateSorted(resolved.accountIds());
                 if (step.resolution() == Resolution.SETTLE) {
                     posting.settle(resolved, touched, NOW);
                 } else {
@@ -122,12 +125,12 @@ class LedgerInvariantProperties {
         var credits = sum(entries, Direction.CREDIT);
 
         if (entries.size() >= 2 && debits.equals(credits)) {
-            var txn = LedgerTransaction.open(ExternalId.of("balanced"), entries, TransactionStatus.POSTED, NOW);
+            var txn = LedgerTransaction.open(LEDGER, ExternalId.of("balanced"), entries, TransactionStatus.POSTED, NOW);
             assertThat(txn.totalDebits()).isEqualTo(debits).isEqualTo(txn.totalCredits());
             Statistics.label("open").collect("accepted");
         } else {
             assertThatThrownBy(
-                    () -> LedgerTransaction.open(ExternalId.of("unbalanced"), entries, TransactionStatus.POSTED, NOW))
+                    () -> LedgerTransaction.open(LEDGER, ExternalId.of("unbalanced"), entries, TransactionStatus.POSTED, NOW))
                     .isInstanceOf(UnbalancedTransactionException.class);
             Statistics.label("open").collect("rejected");
         }
