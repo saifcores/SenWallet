@@ -19,6 +19,12 @@ spring:
       app_role: ${spring.datasource.username}
   jackson:
     property-naming-strategy: SNAKE_CASE
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:senwallet}
+    password: ${RABBITMQ_PASSWORD:senwallet}
+    publisher-confirm-type: correlated
 
 server:
   port: 8002
@@ -36,3 +42,7 @@ management:
 ledger:
   partitions:
     months-ahead: 3
+  outbox:
+    relay-enabled: true
+    delay: 1000
+    batch-size: 100

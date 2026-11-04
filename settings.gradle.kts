@@ -21,6 +21,8 @@ rootProject.name = "senwallet"
 
 include(
     ":platform:shared-kernel",
+    ":platform:event-contracts",
+    ":platform:event-inbox",
     ":platform:test-support",
     ":contexts:ledger:ledger-domain",
     ":contexts:ledger:ledger-application",

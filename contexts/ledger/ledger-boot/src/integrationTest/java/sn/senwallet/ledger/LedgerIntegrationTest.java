@@ -29,6 +29,7 @@ abstract class LedgerIntegrationTest {
     @DynamicPropertySource
     static void database(DynamicPropertyRegistry registry) {
         SenwalletPostgres.ledgerProperties().forEach((key, value) -> registry.add(key, () -> value));
+        registry.add("ledger.outbox.relay-enabled", () -> "false");
     }
 
     @LocalServerPort

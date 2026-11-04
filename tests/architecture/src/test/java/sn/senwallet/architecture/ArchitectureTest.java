@@ -52,9 +52,15 @@ class ArchitectureTest {
                         .that().resideInAPackage("sn.senwallet.ledger..")
                         .should().dependOnClassesThat().resideInAnyPackage("jakarta.persistence..", "org.hibernate..");
 
+        /**
+         * Contexts exchange published events
+         * ({@code sn.senwallet.events}) and, later, HTTP. They do not depend
+         * on each other's modules.
+         */
         @ArchTest
         static final ArchRule contextsAreIsolated = slices()
                         .matching("sn.senwallet.(*)..")
                         .should().notDependOnEachOther()
-                        .ignoreDependency(alwaysTrue(), resideInAPackage("sn.senwallet.shared.."));
+                        .ignoreDependency(alwaysTrue(), resideInAPackage("sn.senwallet.shared.."))
+                        .ignoreDependency(alwaysTrue(), resideInAPackage("sn.senwallet.events.."));
 }

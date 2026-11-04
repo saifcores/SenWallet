@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://senwallet.sn/schemas/ledger-transaction-payload.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["transaction_id", "external_id", "ledger_id"],
+  "properties": {
+    "transaction_id": { "type": "string", "format": "uuid" },
+    "external_id": { "type": "string", "minLength": 1 },
+    "ledger_id": { "type": "string", "format": "uuid" }
+  }
+}

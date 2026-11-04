@@ -13,6 +13,8 @@ dependencies {
     runtimeOnly(libs.postgresql)
 
     integrationTestImplementation(project(":platform:test-support"))
+    integrationTestImplementation(project(":platform:event-inbox"))
+    integrationTestImplementation(libs.spring.boot.starter.amqp)
     integrationTestImplementation(libs.spring.boot.starter.webmvc.test)
     integrationTestImplementation(libs.swagger.parser)
 }
