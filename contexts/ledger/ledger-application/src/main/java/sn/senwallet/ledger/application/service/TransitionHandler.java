@@ -7,6 +7,7 @@ import sn.senwallet.ledger.application.port.in.AccountBalances;
 import sn.senwallet.ledger.application.port.in.TransitionResult;
 import sn.senwallet.ledger.application.port.in.TransitionTransactionUseCase;
 import sn.senwallet.ledger.application.port.out.ClockPort;
+import sn.senwallet.ledger.application.port.out.OutboxPort;
 import sn.senwallet.ledger.domain.exception.IllegalTransitionException;
 import sn.senwallet.ledger.domain.model.transaction.TransactionStatus;
 import sn.senwallet.ledger.domain.repository.LedgerAccountRepository;
@@ -22,13 +23,18 @@ public class TransitionHandler implements TransitionTransactionUseCase {
 
     private final LedgerTransactionRepository transactions;
     private final LedgerAccountRepository accounts;
+    private final OutboxPort outbox;
     private final ClockPort clock;
     private final PostingService posting = new PostingService();
 
     public TransitionHandler(
-            LedgerTransactionRepository transactions, LedgerAccountRepository accounts, ClockPort clock) {
+            LedgerTransactionRepository transactions,
+            LedgerAccountRepository accounts,
+            OutboxPort outbox,
+            ClockPort clock) {
         this.transactions = transactions;
         this.accounts = accounts;
+        this.outbox = outbox;
         this.clock = clock;
     }
 
@@ -54,8 +60,7 @@ public class TransitionHandler implements TransitionTransactionUseCase {
         }
         transactions.updateStatus(txn);
         accounts.saveBalances(locked.values());
-        // Events are published through the outbox from M3 on.
-        txn.pullEvents();
+        outbox.append(txn, txn.pullEvents());
         return new TransitionResult.Transitioned(txn, TransactionWriter.balances(locked));
     }
 }

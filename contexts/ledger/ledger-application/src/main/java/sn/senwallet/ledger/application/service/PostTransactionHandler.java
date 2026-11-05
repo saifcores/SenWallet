@@ -6,6 +6,7 @@ import sn.senwallet.ledger.application.exception.LedgerNotFoundException;
 import sn.senwallet.ledger.application.port.in.PostTransactionUseCase;
 import sn.senwallet.ledger.application.port.in.PostingResult;
 import sn.senwallet.ledger.application.port.out.ClockPort;
+import sn.senwallet.ledger.application.port.out.OutboxPort;
 import sn.senwallet.ledger.domain.model.transaction.LedgerTransaction;
 import sn.senwallet.ledger.domain.repository.LedgerAccountRepository;
 import sn.senwallet.ledger.domain.repository.LedgerRepository;
@@ -22,9 +23,10 @@ public class PostTransactionHandler implements PostTransactionUseCase {
             LedgerRepository ledgers,
             LedgerTransactionRepository transactions,
             LedgerAccountRepository accounts,
+            OutboxPort outbox,
             ClockPort clock) {
         this.ledgers = ledgers;
-        this.writer = new TransactionWriter(transactions, accounts);
+        this.writer = new TransactionWriter(transactions, accounts, outbox);
         this.clock = clock;
     }
 

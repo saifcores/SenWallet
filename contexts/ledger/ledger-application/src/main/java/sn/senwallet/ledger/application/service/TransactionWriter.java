@@ -6,6 +6,7 @@ import java.util.Map;
 import sn.senwallet.ledger.application.exception.IdempotencyConflictException;
 import sn.senwallet.ledger.application.port.in.AccountBalances;
 import sn.senwallet.ledger.application.port.in.PostingResult;
+import sn.senwallet.ledger.application.port.out.OutboxPort;
 import sn.senwallet.ledger.domain.model.account.LedgerAccount;
 import sn.senwallet.ledger.domain.model.condition.BalanceCondition;
 import sn.senwallet.ledger.domain.model.transaction.LedgerTransaction;
@@ -16,7 +17,7 @@ import sn.senwallet.ledger.domain.service.PostingService;
 import sn.senwallet.shared.id.AccountId;
 
 /**
- * Steps 3 to 6 of the posting algorithm (section 4 of the architecture
+ * Steps 3 to 7 of the posting algorithm (section 4 of the architecture
  * dossier), shared by postings and reversals. Must run inside the caller's
  * database transaction: any exception rolls the header insert back too.
  */
@@ -24,11 +25,14 @@ final class TransactionWriter {
 
     private final LedgerTransactionRepository transactions;
     private final LedgerAccountRepository accounts;
+    private final OutboxPort outbox;
     private final PostingService posting = new PostingService();
 
-    TransactionWriter(LedgerTransactionRepository transactions, LedgerAccountRepository accounts) {
+    TransactionWriter(
+            LedgerTransactionRepository transactions, LedgerAccountRepository accounts, OutboxPort outbox) {
         this.transactions = transactions;
         this.accounts = accounts;
+        this.outbox = outbox;
     }
 
     PostingResult write(LedgerTransaction txn, RequestHash hash, List<BalanceCondition> conditions) {
@@ -39,8 +43,7 @@ final class TransactionWriter {
         posting.apply(txn, locked, conditions);
         transactions.insertEntries(txn, versions(locked));
         accounts.saveBalances(locked.values());
-        // Events are published through the outbox from M3 on.
-        txn.pullEvents();
+        outbox.append(txn, txn.pullEvents());
         return new PostingResult.Created(txn, balances(locked));
     }
 

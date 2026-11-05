@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://senwallet.sn/schemas/ledger-transaction-event.json",
+  "allOf": [{ "$ref": "envelope.schema.json" }],
+  "properties": {
+    "event_type": {
+      "enum": [
+        "ledger.transaction.pending",
+        "ledger.transaction.posted",
+        "ledger.transaction.archived"
+      ]
+    },
+    "payload": { "$ref": "ledger-transaction-payload.schema.json" }
+  }
+}

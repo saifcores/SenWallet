@@ -6,5 +6,6 @@ plugins {
 dependencies {
     api(platform(libs.spring.boot.bom))
     api(libs.testcontainers.postgresql)
+    api(libs.testcontainers.rabbitmq)
     runtimeOnly(libs.postgresql)
 }

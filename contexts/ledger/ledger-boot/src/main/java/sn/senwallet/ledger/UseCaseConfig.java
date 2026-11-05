@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import sn.senwallet.ledger.application.port.out.BalanceHistoryPort;
 import sn.senwallet.ledger.application.port.out.ClockPort;
+import sn.senwallet.ledger.application.port.out.OutboxPort;
 import sn.senwallet.ledger.application.service.CreateLedgerHandler;
 import sn.senwallet.ledger.application.service.LedgerQueryService;
 import sn.senwallet.ledger.application.service.OpenAccountHandler;
@@ -43,20 +44,27 @@ class UseCaseConfig {
             LedgerRepository ledgers,
             LedgerTransactionRepository transactions,
             LedgerAccountRepository accounts,
+            OutboxPort outbox,
             ClockPort clock) {
-        return new PostTransactionHandler(ledgers, transactions, accounts, clock);
+        return new PostTransactionHandler(ledgers, transactions, accounts, outbox, clock);
     }
 
     @Bean
     TransitionHandler transitionHandler(
-            LedgerTransactionRepository transactions, LedgerAccountRepository accounts, ClockPort clock) {
-        return new TransitionHandler(transactions, accounts, clock);
+            LedgerTransactionRepository transactions,
+            LedgerAccountRepository accounts,
+            OutboxPort outbox,
+            ClockPort clock) {
+        return new TransitionHandler(transactions, accounts, outbox, clock);
     }
 
     @Bean
     ReverseHandler reverseHandler(
-            LedgerTransactionRepository transactions, LedgerAccountRepository accounts, ClockPort clock) {
-        return new ReverseHandler(transactions, accounts, clock);
+            LedgerTransactionRepository transactions,
+            LedgerAccountRepository accounts,
+            OutboxPort outbox,
+            ClockPort clock) {
+        return new ReverseHandler(transactions, accounts, outbox, clock);
     }
 
     @Bean

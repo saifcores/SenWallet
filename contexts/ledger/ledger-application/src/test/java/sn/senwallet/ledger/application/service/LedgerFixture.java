@@ -33,11 +33,12 @@ final class LedgerFixture {
     final InMemoryLedgerRepository ledgers = new InMemoryLedgerRepository();
     final InMemoryLedgerAccountRepository accounts = new InMemoryLedgerAccountRepository();
     final InMemoryLedgerTransactionRepository transactions = new InMemoryLedgerTransactionRepository();
+    final RecordingOutbox outbox = new RecordingOutbox();
     final ClockPort clock = () -> NOW;
 
-    final PostTransactionHandler post = new PostTransactionHandler(ledgers, transactions, accounts, clock);
-    final TransitionHandler transition = new TransitionHandler(transactions, accounts, clock);
-    final ReverseHandler reverse = new ReverseHandler(transactions, accounts, clock);
+    final PostTransactionHandler post = new PostTransactionHandler(ledgers, transactions, accounts, outbox, clock);
+    final TransitionHandler transition = new TransitionHandler(transactions, accounts, outbox, clock);
+    final ReverseHandler reverse = new ReverseHandler(transactions, accounts, outbox, clock);
 
     final LedgerId ledger;
     final AccountId treasury;

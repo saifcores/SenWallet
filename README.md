@@ -166,6 +166,7 @@ senwallet/
 ├── platform/
 │   ├── shared-kernel/             # Money XOF, identifiants, DomainEvent
 │   ├── event-contracts/           # événements publiés (records + JSON Schema)
+│   ├── event-inbox/               # consommation idempotente (processed_events)
 │   └── test-support/              # Testcontainers, fixtures
 ├── contexts/
 │   ├── ledger/          {domain, application, infrastructure, boot}
@@ -207,6 +208,8 @@ curl http://localhost:8002/actuator/health
 ```
 
 > Depuis M2, le script d'initialisation crée deux rôles (`ledger_owner`, `ledger_app`, ADR-20). Un volume créé avant M2 doit être recréé une fois : `docker compose -f deploy/docker-compose.yml down -v`.
+>
+> Depuis M3, Compose démarre aussi RabbitMQ (exchange topic `ledger`, utilisateur `senwallet`).
 
 Le contrat de l'API du ledger est dans [`contracts/openapi/ledger.yaml`](contracts/openapi/ledger.yaml).
 
@@ -290,7 +293,7 @@ Le projet avance par jalons ; un jalon n'est terminé que lorsque ses tests pass
 | M0    | Socle du monorepo : Gradle, CI, Docker Compose, ArchUnit | Terminé |
 | M1    | Domaine du ledger en Java pur, tests de propriété        | Terminé |
 | M2    | Persistance PostgreSQL, algorithme de posting, API REST  | Terminé |
-| M3    | Outbox, RabbitMQ, contrats d'événements                  | À faire |
+| M3    | Outbox, RabbitMQ, contrats d'événements                  | Terminé |
 | M4    | Contexte wallet : KYC, plafonds, frais, P2P              | À faire |
 | M5    | Passerelle Traefik, Keycloak, jetons de service          | À faire |
 | M6    | Simulateurs PI-SPI, opérateurs, banques, pannes          | À faire |

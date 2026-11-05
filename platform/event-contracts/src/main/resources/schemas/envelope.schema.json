@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://senwallet.sn/schemas/event-envelope.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id",
+    "event_type",
+    "occurred_at",
+    "trace_id",
+    "aggregate_id",
+    "version",
+    "payload"
+  ],
+  "properties": {
+    "event_id": { "type": "string", "format": "uuid" },
+    "event_type": { "type": "string", "minLength": 1 },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "trace_id": { "type": ["string", "null"] },
+    "aggregate_id": { "type": "string", "format": "uuid" },
+    "version": { "const": 1 },
+    "payload": { "type": "object" }
+  }
+}

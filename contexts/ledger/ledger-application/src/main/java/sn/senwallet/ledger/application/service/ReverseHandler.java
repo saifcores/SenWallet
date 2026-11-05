@@ -6,6 +6,7 @@ import sn.senwallet.ledger.application.exception.TransactionNotFoundException;
 import sn.senwallet.ledger.application.port.in.PostingResult;
 import sn.senwallet.ledger.application.port.in.ReverseTransactionUseCase;
 import sn.senwallet.ledger.application.port.out.ClockPort;
+import sn.senwallet.ledger.application.port.out.OutboxPort;
 import sn.senwallet.ledger.domain.repository.LedgerAccountRepository;
 import sn.senwallet.ledger.domain.repository.LedgerTransactionRepository;
 
@@ -17,9 +18,12 @@ public class ReverseHandler implements ReverseTransactionUseCase {
     private final ClockPort clock;
 
     public ReverseHandler(
-            LedgerTransactionRepository transactions, LedgerAccountRepository accounts, ClockPort clock) {
+            LedgerTransactionRepository transactions,
+            LedgerAccountRepository accounts,
+            OutboxPort outbox,
+            ClockPort clock) {
         this.transactions = transactions;
-        this.writer = new TransactionWriter(transactions, accounts);
+        this.writer = new TransactionWriter(transactions, accounts, outbox);
         this.clock = clock;
     }
 

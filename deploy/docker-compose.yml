@@ -32,10 +32,15 @@ services:
       LEDGER_DB_HOST: postgres
       LEDGER_DB_PASSWORD: ${LEDGER_DB_PASSWORD:-ledger_app}
       LEDGER_OWNER_PASSWORD: ${LEDGER_OWNER_PASSWORD:-ledger_owner}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: ${RABBITMQ_USER:-senwallet}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-senwallet}
     ports:
       - "8002:8002"
     depends_on:
       postgres:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8002/actuator/health"]
@@ -43,6 +48,21 @@ services:
       timeout: 3s
       retries: 24
       start_period: 10s
+
+  rabbitmq:
+    image: rabbitmq:4-alpine
+    container_name: senwallet-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-senwallet}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-senwallet}
+    ports:
+      - "5672:5672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
 
 volumes:
   postgres-data:
