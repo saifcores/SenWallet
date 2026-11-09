@@ -46,6 +46,12 @@ class ArchitectureTest {
                         .should().dependOnClassesThat(resideInAPackage("org.springframework..")
                                         .and(not(resideInAPackage("org.springframework.transaction.."))));
 
+        @ArchTest
+        static final ArchRule walletDomainIsTheInnermostLayer = noClasses()
+                        .that().resideInAPackage("sn.senwallet.wallet.domain..")
+                        .should().dependOnClassesThat()
+                        .resideInAnyPackage("..application..", "..infrastructure..");
+
         /** ADR-13: the ledger uses explicit SQL, never JPA. */
         @ArchTest
         static final ArchRule ledgerHasNoJpa = noClasses()
@@ -53,14 +59,15 @@ class ArchitectureTest {
                         .should().dependOnClassesThat().resideInAnyPackage("jakarta.persistence..", "org.hibernate..");
 
         /**
-         * Contexts exchange published events
-         * ({@code sn.senwallet.events}) and, later, HTTP. They do not depend
-         * on each other's modules.
+         * Contexts exchange published events ({@code sn.senwallet.events}) and
+         * the generated ledger client ({@code sn.senwallet.clients}). They do
+         * not depend on each other's modules.
          */
         @ArchTest
         static final ArchRule contextsAreIsolated = slices()
                         .matching("sn.senwallet.(*)..")
                         .should().notDependOnEachOther()
                         .ignoreDependency(alwaysTrue(), resideInAPackage("sn.senwallet.shared.."))
-                        .ignoreDependency(alwaysTrue(), resideInAPackage("sn.senwallet.events.."));
+                        .ignoreDependency(alwaysTrue(), resideInAPackage("sn.senwallet.events.."))
+                        .ignoreDependency(alwaysTrue(), resideInAPackage("sn.senwallet.clients.."));
 }

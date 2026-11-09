@@ -1,0 +1,260 @@
+openapi: 3.1.0
+info:
+  title: SenWallet wallet
+  version: 1.0.0
+  description: |
+    Wallet service (milestone M4): simulated KYC, dated limits and fees, and
+    idempotent P2P posted through the ledger.
+
+    - Property names are snake_case. Amounts are integers in XOF.
+    - `POST /transfers` requires `Idempotency-Key`. The same key and body replay
+      the stored response; a different body is 409 `idempotency_conflict`.
+    - Errors are RFC 9457 problem details whose `type` is
+      `urn:senwallet:problem:<code>`.
+servers:
+  - url: http://localhost:8001
+
+paths:
+  /customers:
+    post:
+      operationId: registerCustomer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RegisterRequest" }
+      responses:
+        "201":
+          description: Customer created. `otp` is the simulated code.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Customer" }
+        "400": { $ref: "#/components/responses/InvalidRequest" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /customers/{id}/verification:
+    post:
+      operationId: verifyCustomer
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/VerifyRequest" }
+      responses:
+        "201":
+          description: Customer verified at tier n1 and wallet opened.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Verification" }
+        "400": { $ref: "#/components/responses/InvalidRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /customers/{id}/kyc:
+    post:
+      operationId: changeKycTier
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/KycRequest" }
+      responses:
+        "200":
+          description: Tier updated. The holding cap still comes from dated policy rows.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Kyc" }
+        "400": { $ref: "#/components/responses/InvalidRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /wallets/{id}:
+    get:
+      operationId: getWallet
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Wallet, tier and current ledger balances.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Wallet" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /wallets/{id}/history:
+    get:
+      operationId: getWalletHistory
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Ledger entries that touched this wallet, one row per event.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/History" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /transfers:
+    post:
+      operationId: createTransfer
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TransferRequest" }
+      responses:
+        "201":
+          description: Posted. A replay of the same key and body is the same response.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Transfer" }
+        "400": { $ref: "#/components/responses/InvalidRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+components:
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  responses:
+    InvalidRequest:
+      description: The request is malformed.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    NotFound:
+      description: The customer or wallet does not exist.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    Conflict:
+      description: Phone already registered, or the idempotency key was reused with another body.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    Unprocessable:
+      description: The ledger refused the posting. Nothing was written on the ledger.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [phone]
+      properties:
+        phone: { type: string, example: "+221770000001" }
+    Customer:
+      type: object
+      required: [id, phone, status, otp]
+      properties:
+        id: { type: string, format: uuid }
+        phone: { type: string }
+        status: { type: string, enum: [unverified] }
+        otp: { type: string, description: Simulated one-time code. There is no SMS channel. }
+    VerifyRequest:
+      type: object
+      required: [otp]
+      properties:
+        otp: { type: string }
+    Verification:
+      type: object
+      required: [customer_id, kyc_tier, wallet_id, pispi_alias, ledger_account_id]
+      properties:
+        customer_id: { type: string, format: uuid }
+        kyc_tier: { type: string, enum: [n1, n2, merchant] }
+        wallet_id: { type: string, format: uuid }
+        pispi_alias: { type: string }
+        ledger_account_id: { type: string, format: uuid }
+    KycRequest:
+      type: object
+      required: [tier]
+      properties:
+        tier: { type: string, enum: [n1, n2, merchant] }
+    Kyc:
+      type: object
+      required: [customer_id, kyc_tier]
+      properties:
+        customer_id: { type: string, format: uuid }
+        kyc_tier: { type: string, enum: [n1, n2, merchant] }
+    Balance:
+      type: object
+      required: [posted, pending, available]
+      properties:
+        posted: { type: integer, format: int64 }
+        pending: { type: integer, format: int64 }
+        available: { type: integer, format: int64 }
+    Wallet:
+      type: object
+      required: [id, customer_id, ledger_id, ledger_account_id, status, pispi_alias, kyc_tier, balances]
+      properties:
+        id: { type: string, format: uuid }
+        customer_id: { type: string, format: uuid }
+        ledger_id: { type: string, format: uuid }
+        ledger_account_id: { type: string, format: uuid }
+        status: { type: string, enum: [opening, active] }
+        pispi_alias: { type: string }
+        kyc_tier: { type: string, enum: [n1, n2, merchant] }
+        balances: { $ref: "#/components/schemas/Balance" }
+    TransferRequest:
+      type: object
+      required: [from_wallet_id, to_phone, amount, currency]
+      properties:
+        from_wallet_id: { type: string, format: uuid }
+        to_phone: { type: string }
+        amount: { type: integer, format: int64, minimum: 1 }
+        currency: { type: string, enum: [XOF] }
+    Transfer:
+      type: object
+      required: [id, from_wallet_id, to_wallet_id, amount, fee, currency, status]
+      properties:
+        id: { type: string, format: uuid }
+        from_wallet_id: { type: string, format: uuid }
+        to_wallet_id: { type: string, format: uuid }
+        amount: { type: integer, format: int64 }
+        fee: { type: integer, format: int64 }
+        currency: { type: string }
+        status: { type: string, enum: [posted, rejected] }
+        ledger_transaction_id: { type: [string, "null"], format: uuid }
+    HistoryItem:
+      type: object
+      required: [event_id, event_type, transaction_id, external_id, direction, amount, occurred_at]
+      properties:
+        event_id: { type: string, format: uuid }
+        event_type: { type: string }
+        transaction_id: { type: string, format: uuid }
+        external_id: { type: string }
+        direction: { type: string, enum: [debit, credit] }
+        amount: { type: integer, format: int64 }
+        occurred_at: { type: string, format: date-time }
+    History:
+      type: object
+      required: [entries]
+      properties:
+        entries:
+          type: array
+          items: { $ref: "#/components/schemas/HistoryItem" }
+    Problem:
+      type: object
+      required: [type, title, status, code]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        code: { type: string }
+        field: { type: string }
+        transfer_id: { type: string, format: uuid }

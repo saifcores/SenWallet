@@ -18,6 +18,11 @@ public final class SenwalletPostgres {
     public static final String LEDGER_OWNER_PASSWORD = "ledger_owner_it";
     public static final String LEDGER_APP = "ledger_app";
     public static final String LEDGER_APP_PASSWORD = "ledger_app_it";
+    public static final String WALLET_DATABASE = "wallet";
+    public static final String WALLET_OWNER = "wallet_owner";
+    public static final String WALLET_OWNER_PASSWORD = "wallet_owner_it";
+    public static final String WALLET_APP = "wallet_app";
+    public static final String WALLET_APP_PASSWORD = "wallet_app_it";
 
     private static final PostgreSQLContainer CONTAINER = start();
 
@@ -43,6 +48,16 @@ public final class SenwalletPostgres {
                 "spring.flyway.password", LEDGER_OWNER_PASSWORD);
     }
 
+    /** Spring properties for the wallet service, same role split as the ledger. */
+    public static Map<String, String> walletProperties() {
+        return Map.of(
+                "spring.datasource.url", jdbcUrl(WALLET_DATABASE),
+                "spring.datasource.username", WALLET_APP,
+                "spring.datasource.password", WALLET_APP_PASSWORD,
+                "spring.flyway.user", WALLET_OWNER,
+                "spring.flyway.password", WALLET_OWNER_PASSWORD);
+    }
+
     private static PostgreSQLContainer start() {
         var container = new PostgreSQLContainer("postgres:16")
                 .withUsername("senwallet")
@@ -50,6 +65,8 @@ public final class SenwalletPostgres {
                 .withDatabaseName("postgres")
                 .withEnv("LEDGER_OWNER_PASSWORD", LEDGER_OWNER_PASSWORD)
                 .withEnv("LEDGER_DB_PASSWORD", LEDGER_APP_PASSWORD)
+                .withEnv("WALLET_OWNER_PASSWORD", WALLET_OWNER_PASSWORD)
+                .withEnv("WALLET_DB_PASSWORD", WALLET_APP_PASSWORD)
                 .withCopyFileToContainer(MountableFile.forHostPath(initScripts(), 0755),
                         "/docker-entrypoint-initdb.d/");
         container.start();
