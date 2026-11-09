@@ -57,14 +57,16 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v6
 
-      - name: Build the ledger jar
-        run: ./gradlew :contexts:ledger:ledger-boot:bootJar --console=plain
+      - name: Build the service jars
+        run: ./gradlew :contexts:ledger:ledger-boot:bootJar :contexts:wallet:wallet-boot:bootJar --console=plain
 
       - name: Start the stack
         run: docker compose -f deploy/docker-compose.yml up -d --build --wait
 
-      - name: Check ledger health
-        run: curl -fsS http://localhost:8002/actuator/health
+      - name: Check service health
+        run: |
+          curl -fsS http://localhost:8002/actuator/health
+          curl -fsS http://localhost:8001/actuator/health
 
       - name: Show logs
         if: failure()

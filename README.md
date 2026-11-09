@@ -200,16 +200,19 @@ cd SenWallet
 # Compiler et lancer tous les tests (JAVA_HOME sur un JDK 25)
 ./gradlew build
 
-# Démarrer l'infrastructure et les services (le jar du ledger d'abord)
-./gradlew :contexts:ledger:ledger-boot:bootJar
+# Démarrer l'infrastructure et les services (les jars d'abord)
+./gradlew :contexts:ledger:ledger-boot:bootJar :contexts:wallet:wallet-boot:bootJar
 cp deploy/.env.example deploy/.env
 docker compose -f deploy/docker-compose.yml up -d --build --wait
 curl http://localhost:8002/actuator/health
+curl http://localhost:8001/actuator/health
 ```
 
 > Depuis M2, le script d'initialisation crée deux rôles (`ledger_owner`, `ledger_app`, ADR-20). Un volume créé avant M2 doit être recréé une fois : `docker compose -f deploy/docker-compose.yml down -v`.
 >
 > Depuis M3, Compose démarre aussi RabbitMQ (exchange topic `ledger`, utilisateur `senwallet`).
+>
+> Depuis M4, le même volume crée `wallet_owner` et `wallet_app` (ADR-22) et Compose démarre le wallet sur le port 8001. Un volume créé avant M4 doit être recréé une fois.
 
 Le contrat de l'API du ledger est dans [`contracts/openapi/ledger.yaml`](contracts/openapi/ledger.yaml).
 
@@ -232,8 +235,7 @@ Le contrat de l'API du ledger est dans [`contracts/openapi/ledger.yaml`](contrac
 ### Exemple : un transfert P2P
 
 ```bash
-curl -X POST https://localhost/api/transfers \
-  -H "Authorization: Bearer $TOKEN" \
+curl -X POST http://localhost:8001/transfers \
   -H "Idempotency-Key: 3f1c9a52-7d0e-4b8a-9f21-6c2d5e8a1b44" \
   -H "Content-Type: application/json" \
   -d '{
@@ -243,6 +245,8 @@ curl -X POST https://localhost/api/transfers \
         "currency": "XOF"
       }'
 ```
+
+Jusqu'au jalon M5, le wallet est appelé directement, sans jeton. La passerelle reprendra `https://localhost/api/transfers`.
 
 Rejouer la même requête avec la même `Idempotency-Key` renvoie la même réponse sans créer de second transfert.
 
@@ -294,7 +298,7 @@ Le projet avance par jalons ; un jalon n'est terminé que lorsque ses tests pass
 | M1    | Domaine du ledger en Java pur, tests de propriété        | Terminé |
 | M2    | Persistance PostgreSQL, algorithme de posting, API REST  | Terminé |
 | M3    | Outbox, RabbitMQ, contrats d'événements                  | Terminé |
-| M4    | Contexte wallet : KYC, plafonds, frais, P2P              | À faire |
+| M4    | Contexte wallet : KYC, plafonds, frais, P2P              | Terminé |
 | M5    | Passerelle Traefik, Keycloak, jetons de service          | À faire |
 | M6    | Simulateurs PI-SPI, opérateurs, banques, pannes          | À faire |
 | M7    | Contexte paiements : sagas, inbox, enquêtes de statut    | À faire |

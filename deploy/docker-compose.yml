@@ -10,6 +10,8 @@ services:
       POSTGRES_DB: postgres
       LEDGER_OWNER_PASSWORD: ${LEDGER_OWNER_PASSWORD:-ledger_owner}
       LEDGER_DB_PASSWORD: ${LEDGER_DB_PASSWORD:-ledger_app}
+      WALLET_OWNER_PASSWORD: ${WALLET_OWNER_PASSWORD:-wallet_owner}
+      WALLET_DB_PASSWORD: ${WALLET_DB_PASSWORD:-wallet_app}
     ports:
       - "5432:5432"
     volumes:
@@ -48,6 +50,36 @@ services:
       timeout: 3s
       retries: 24
       start_period: 10s
+
+  # Build the jar first: ./gradlew :contexts:wallet:wallet-boot:bootJar
+  wallet:
+    build:
+      context: ../contexts/wallet/wallet-boot
+    image: senwallet/wallet:local
+    container_name: senwallet-wallet
+    environment:
+      WALLET_DB_HOST: postgres
+      WALLET_DB_PASSWORD: ${WALLET_DB_PASSWORD:-wallet_app}
+      WALLET_OWNER_PASSWORD: ${WALLET_OWNER_PASSWORD:-wallet_owner}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: ${RABBITMQ_USER:-senwallet}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-senwallet}
+      LEDGER_BASE_URL: http://ledger:8002
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      ledger:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8001/actuator/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+      start_period: 15s
 
   rabbitmq:
     image: rabbitmq:4-alpine

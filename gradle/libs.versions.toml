@@ -7,6 +7,7 @@ jqwik = "1.10.2"
 archunit = "1.5.1"
 testcontainers = "2.0.5"
 swagger-parser = "2.1.48"
+resilience4j = "2.2.0"
 
 [libraries]
 spring-boot-bom = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
@@ -28,6 +29,8 @@ testcontainers-rabbitmq = { module = "org.testcontainers:testcontainers-rabbitmq
 jackson-databind = { module = "tools.jackson.core:jackson-databind" }
 testcontainers-junit-jupiter = { module = "org.testcontainers:testcontainers-junit-jupiter" }
 swagger-parser = { module = "io.swagger.parser.v3:swagger-parser", version.ref = "swagger-parser" }
+resilience4j-retry = { module = "io.github.resilience4j:resilience4j-retry", version.ref = "resilience4j" }
+resilience4j-timelimiter = { module = "io.github.resilience4j:resilience4j-timelimiter", version.ref = "resilience4j" }
 
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
