@@ -1,0 +1,206 @@
+{
+  "id": "senwallet",
+  "realm": "senwallet",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": false,
+  "resetPasswordAllowed": false,
+  "verifyEmail": false,
+  "bruteForceProtected": false,
+  "accessTokenLifespan": 300,
+  "requiredActions": [
+    {
+      "alias": "VERIFY_PROFILE",
+      "name": "Verify Profile",
+      "providerId": "VERIFY_PROFILE",
+      "enabled": false,
+      "defaultAction": false
+    }
+  ],
+  "roles": {
+    "realm": [
+      { "name": "customer", "composite": false, "clientRole": false },
+      { "name": "ops", "composite": false, "clientRole": false },
+      { "name": "finance", "composite": false, "clientRole": false },
+      { "name": "compliance", "composite": false, "clientRole": false },
+      { "name": "approver", "composite": false, "clientRole": false }
+    ]
+  },
+  "users": [
+    {
+      "username": "adama",
+      "enabled": true,
+      "firstName": "Adama",
+      "lastName": "Diallo",
+      "email": "adama@senwallet.local",
+      "emailVerified": true,
+      "requiredActions": [],
+      "credentials": [
+        { "type": "password", "value": "password", "temporary": false }
+      ],
+      "realmRoles": ["customer"]
+    },
+    {
+      "username": "binta",
+      "enabled": true,
+      "firstName": "Binta",
+      "lastName": "Sow",
+      "email": "binta@senwallet.local",
+      "emailVerified": true,
+      "requiredActions": [],
+      "credentials": [
+        { "type": "password", "value": "password", "temporary": false }
+      ],
+      "realmRoles": ["customer"]
+    },
+    {
+      "username": "ops",
+      "enabled": true,
+      "firstName": "Ops",
+      "lastName": "Senwallet",
+      "email": "ops@senwallet.local",
+      "emailVerified": true,
+      "requiredActions": [],
+      "credentials": [
+        { "type": "password", "value": "password", "temporary": false }
+      ],
+      "realmRoles": ["ops"]
+    },
+    {
+      "username": "finance",
+      "enabled": true,
+      "firstName": "Finance",
+      "lastName": "Senwallet",
+      "email": "finance@senwallet.local",
+      "emailVerified": true,
+      "requiredActions": [],
+      "credentials": [
+        { "type": "password", "value": "password", "temporary": false }
+      ],
+      "realmRoles": ["finance"]
+    },
+    {
+      "username": "compliance",
+      "enabled": true,
+      "firstName": "Compliance",
+      "lastName": "Senwallet",
+      "email": "compliance@senwallet.local",
+      "emailVerified": true,
+      "requiredActions": [],
+      "credentials": [
+        { "type": "password", "value": "password", "temporary": false }
+      ],
+      "realmRoles": ["compliance"]
+    },
+    {
+      "username": "approver",
+      "enabled": true,
+      "firstName": "Approver",
+      "lastName": "Senwallet",
+      "email": "approver@senwallet.local",
+      "emailVerified": true,
+      "requiredActions": [],
+      "credentials": [
+        { "type": "password", "value": "password", "temporary": false }
+      ],
+      "realmRoles": ["approver"]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "wallet-web",
+      "name": "Wallet web",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "redirectUris": ["https://localhost/*"],
+      "webOrigins": ["https://localhost"],
+      "attributes": {
+        "access.token.lifespan": "300",
+        "pkce.code.challenge.method": "S256"
+      },
+      "protocolMappers": [
+        {
+          "name": "audience-wallet",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "wallet",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "false",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "roles",
+            "jsonType.label": "String"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "wallet-service",
+      "name": "Wallet service",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "wallet-service-secret",
+      "clientAuthenticatorType": "client-secret",
+      "protocol": "openid-connect",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "protocolMappers": [
+        {
+          "name": "audience-ledger",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "ledger",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "payments-service",
+      "name": "Payments service",
+      "enabled": false,
+      "publicClient": false,
+      "secret": "payments-service-secret",
+      "clientAuthenticatorType": "client-secret",
+      "protocol": "openid-connect",
+      "standardFlowEnabled": false,
+      "serviceAccountsEnabled": true
+    },
+    {
+      "clientId": "recon-service",
+      "name": "Reconciliation service",
+      "enabled": false,
+      "publicClient": false,
+      "secret": "recon-service-secret",
+      "clientAuthenticatorType": "client-secret",
+      "protocol": "openid-connect",
+      "standardFlowEnabled": false,
+      "serviceAccountsEnabled": true
+    }
+  ]
+}

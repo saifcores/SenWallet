@@ -16,6 +16,7 @@ import sn.senwallet.ledger.domain.model.ledger.LedgerEnvironment;
 import sn.senwallet.shared.id.AccountId;
 import sn.senwallet.shared.id.LedgerId;
 import sn.senwallet.shared.money.Currency;
+import sn.senwallet.testsupport.SenwalletKeycloak;
 import sn.senwallet.testsupport.SenwalletPostgres;
 
 /**
@@ -29,6 +30,7 @@ abstract class LedgerIntegrationTest {
     @DynamicPropertySource
     static void database(DynamicPropertyRegistry registry) {
         SenwalletPostgres.ledgerProperties().forEach((key, value) -> registry.add(key, () -> value));
+        SenwalletKeycloak.ledgerProperties().forEach((key, value) -> registry.add(key, () -> value));
         registry.add("ledger.outbox.relay-enabled", () -> "false");
     }
 

@@ -24,6 +24,51 @@ services:
       retries: 10
       start_period: 10s
 
+  rabbitmq:
+    image: rabbitmq:4-alpine
+    container_name: senwallet-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-senwallet}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-senwallet}
+    ports:
+      - "5672:5672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.3
+    container_name: senwallet-keycloak
+    command:
+      - start-dev
+      - --import-realm
+      - --http-enabled=true
+      - --hostname-strict=false
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      # KC_HOSTNAME: keycloak
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./keycloak/senwallet-realm.json:/opt/keycloak/data/import/senwallet-realm.json:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "exec 3<>/dev/tcp/127.0.0.1/8080 && echo -e 'GET /realms/senwallet/.well-known/openid-configuration HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && grep -q senwallet <&3",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 36
+      start_period: 40s
+
   # Build the jar first: ./gradlew :contexts:ledger:ledger-boot:bootJar
   ledger:
     build:
@@ -37,12 +82,15 @@ services:
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_USER: ${RABBITMQ_USER:-senwallet}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-senwallet}
+      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/senwallet
     ports:
       - "8002:8002"
     depends_on:
       postgres:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+      keycloak:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8002/actuator/health"]
@@ -65,6 +113,8 @@ services:
       RABBITMQ_USER: ${RABBITMQ_USER:-senwallet}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-senwallet}
       LEDGER_BASE_URL: http://ledger:8002
+      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/senwallet
+      WALLET_SERVICE_CLIENT_SECRET: ${WALLET_SERVICE_CLIENT_SECRET:-wallet-service-secret}
     ports:
       - "8001:8001"
     depends_on:
@@ -74,6 +124,8 @@ services:
         condition: service_healthy
       ledger:
         condition: service_healthy
+      keycloak:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8001/actuator/health"]
       interval: 5s
@@ -81,20 +133,23 @@ services:
       retries: 24
       start_period: 15s
 
-  rabbitmq:
-    image: rabbitmq:4-alpine
-    container_name: senwallet-rabbitmq
-    environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-senwallet}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-senwallet}
+  gateway:
+    image: traefik:v3.3
+    container_name: senwallet-gateway
     ports:
-      - "5672:5672"
+      - "443:443"
+    volumes:
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+    depends_on:
+      wallet:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
       interval: 5s
-      timeout: 5s
-      retries: 12
-      start_period: 15s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
 
 volumes:
   postgres-data:

@@ -15,6 +15,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.ClientHttpResponse;
@@ -34,8 +35,9 @@ import tools.jackson.databind.json.JsonMapper;
 
 /**
  * HTTP client of {@code contracts/openapi/ledger.yaml}. Posts are limited to
- * 2 seconds and retried on transport failures and 5xx, with the same body.
- * 409 and 422 are not retried.
+ * 2 seconds and retried on transport failures, 401 and 5xx, with the same
+ * body. 409 and 422 are not retried. A 401 retries so a fresh service token
+ * can be fetched; the supplier must not reuse a dead token.
  */
 public final class LedgerClient implements AutoCloseable {
 
@@ -52,10 +54,25 @@ public final class LedgerClient implements AutoCloseable {
     private final ExecutorService executor;
 
     public LedgerClient(String baseUrl) {
+        this(baseUrl, () -> null);
+    }
+
+    public LedgerClient(String baseUrl, Supplier<String> accessToken) {
         var requests = new SimpleClientHttpRequestFactory();
         requests.setConnectTimeout(TIMEOUT);
         requests.setReadTimeout(TIMEOUT);
-        this.http = RestClient.builder().baseUrl(baseUrl).requestFactory(requests).build();
+        this.http = RestClient.builder()
+                .baseUrl(baseUrl)
+                .requestFactory(requests)
+                .requestInterceptor((request, body, execution) -> {
+                    var token = accessToken.get();
+                    if (token != null && !token.isBlank()) {
+                        request.getHeaders().set(HttpHeaders.AUTHORIZATION,
+                                "Bearer " + token);
+                    }
+                    return execution.execute(request, body);
+                })
+                .build();
         this.retry = Retry.of("ledger-post", RetryConfig.custom()
                 .maxAttempts(3)
                 .waitDuration(Duration.ofMillis(20))
@@ -155,7 +172,7 @@ public final class LedgerClient implements AutoCloseable {
             throws IOException {
         var raw = new String(response.getBody().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
         var status = response.getStatusCode().value();
-        if (response.getStatusCode().is5xxServerError()) {
+        if (status == 401 || response.getStatusCode().is5xxServerError()) {
             throw new LedgerTransportException("ledger responded " + status + ": " + raw);
         }
         throw rejected(status, raw);

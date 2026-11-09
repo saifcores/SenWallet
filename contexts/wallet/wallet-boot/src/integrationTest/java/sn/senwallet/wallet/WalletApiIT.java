@@ -21,6 +21,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.TreeSet;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -38,6 +41,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 import sn.senwallet.ledger.LedgerApplication;
+import sn.senwallet.testsupport.SenwalletKeycloak;
 import sn.senwallet.testsupport.SenwalletPostgres;
 import sn.senwallet.testsupport.SenwalletRabbit;
 import sn.senwallet.wallet.infrastructure.adapter.out.notify.LoggingSms;
@@ -45,7 +49,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Exercise 6 and the internal half of SendCash, against the real ledger.
+ * Exercises 4–6 through the wallet resource server, against the real ledger.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class WalletApiIT {
@@ -75,6 +79,7 @@ class WalletApiIT {
         registry.add("spring.rabbitmq.username", () -> SenwalletRabbit.USER);
         registry.add("spring.rabbitmq.password", () -> SenwalletRabbit.PASSWORD);
         registry.add("wallet.ledger.base-url", () -> "http://localhost:" + LEDGER_PORT);
+        SenwalletKeycloak.walletProperties().forEach((key, value) -> registry.add(key, () -> value));
         registry.add("spring.jmx.enabled", () -> "false");
     }
 
@@ -163,6 +168,58 @@ class WalletApiIT {
         assertThat(smsCount(externalId)).isEqualTo(beforeSms);
         assertThat(smsText(externalId)).anyMatch(text -> text.contains("Vous avez envoyé 50000 XOF"));
         assertThat(smsText(externalId)).anyMatch(text -> text.contains("Vous avez reçu 50000 XOF"));
+    }
+
+    @Test
+    void registerDoesNotNeedAToken() throws Exception {
+        var phone = "+221" + PHONES.getAndIncrement();
+        var registered = postAnonymous("/customers", "{\"phone\":\"" + phone + "\"}");
+        assertThat(registered.status()).isEqualTo(201);
+    }
+
+    @Test
+    void transferWithoutATokenIs401() throws Exception {
+        var sender = verifiedCustomer();
+        var recipient = verifiedCustomer();
+        fund(sender, 1_000);
+        var rejected = postAnonymous("/transfers", """
+                {"from_wallet_id":"%s","to_phone":"%s","amount":1,"currency":"XOF"}
+                """.formatted(sender.walletId(), recipient.phone()));
+        assertThat(rejected.status()).isEqualTo(401);
+    }
+
+    /**
+     * Exercise 5: 100 concurrent P2P of 20 000 XOF (fee 200) from a wallet
+     * holding 1 010 000. Exactly 50 succeed, available is 0.
+     */
+    @Test
+    void concurrentP2pNeverOverdraws() throws Exception {
+        var sender = verifiedCustomer();
+        var recipient = verifiedCustomer();
+        fund(sender, 1_010_000);
+
+        var start = new CountDownLatch(1);
+        var calls = new ArrayList<Future<Reply>>();
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            for (int i = 0; i < 100; i++) {
+                calls.add(executor.submit(() -> {
+                    start.await();
+                    return transfer(sender.walletId(), recipient.phone(), 20_000);
+                }));
+            }
+            start.countDown();
+        }
+        var statuses = new ArrayList<Integer>();
+        for (var call : calls) {
+            statuses.add(call.get().status());
+        }
+
+        assertThat(statuses).filteredOn(s -> s == 201).hasSize(50);
+        assertThat(statuses).filteredOn(s -> s == 422).hasSize(50);
+        assertThat(wallet(sender.walletId()).path("balances").path("available").asLong())
+                .isEqualTo(0);
+        assertThat(wallet(sender.walletId()).path("balances").path("posted").asLong())
+                .isGreaterThanOrEqualTo(0);
     }
 
     private Opened verifiedCustomer() throws Exception {
@@ -257,11 +314,23 @@ class WalletApiIT {
     }
 
     private Reply post(String path, String body, String idempotencyKey) throws Exception {
+        return post(path, body, idempotencyKey, SenwalletKeycloak.customerToken());
+    }
+
+    private Reply postAnonymous(String path, String body) throws Exception {
+        return post(path, body, UUID.randomUUID().toString(), null);
+    }
+
+    private Reply post(String path, String body, String idempotencyKey, String bearer)
+            throws Exception {
         var request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
                 .header("Content-Type", "application/json")
                 .timeout(Duration.ofSeconds(10));
         if (idempotencyKey != null) {
             request.header("Idempotency-Key", idempotencyKey);
+        }
+        if (bearer != null) {
+            request.header("Authorization", "Bearer " + bearer);
         }
         request.POST(HttpRequest.BodyPublishers.ofString(body));
         return send(request.build(), idempotencyKey);
@@ -269,6 +338,7 @@ class WalletApiIT {
 
     private Reply get(String path) throws Exception {
         return send(HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
+                .header("Authorization", "Bearer " + SenwalletKeycloak.customerToken())
                 .timeout(Duration.ofSeconds(10))
                 .GET()
                 .build(), null);
@@ -277,6 +347,7 @@ class WalletApiIT {
     private static Reply ledgerPost(String path, String body) throws Exception {
         return send(HttpRequest.newBuilder(URI.create("http://localhost:" + LEDGER_PORT + path))
                 .header("Content-Type", "application/json")
+                .header("Authorization", "Bearer " + SenwalletKeycloak.serviceToken())
                 .timeout(Duration.ofSeconds(10))
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build(), null);
@@ -285,6 +356,7 @@ class WalletApiIT {
     private static JsonNode ledgerAccount(String id) throws Exception {
         var response = send(HttpRequest.newBuilder(
                 URI.create("http://localhost:" + LEDGER_PORT + "/ledger_accounts/" + id))
+                .header("Authorization", "Bearer " + SenwalletKeycloak.serviceToken())
                 .timeout(Duration.ofSeconds(10))
                 .GET()
                 .build(), null);
@@ -352,6 +424,7 @@ class WalletApiIT {
         properties.put("server.port", "0");
         properties.put("spring.jmx.enabled", "false");
         properties.put("ledger.outbox.relay-enabled", "true");
+        properties.putAll(SenwalletKeycloak.ledgerProperties());
         ConfigurableApplicationContext context = new SpringApplicationBuilder(LedgerApplication.class)
                 .initializers(applicationContext -> applicationContext.getEnvironment().getPropertySources()
                         .addFirst(new MapPropertySource("ledger-it", properties)))

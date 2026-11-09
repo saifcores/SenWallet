@@ -1,0 +1,30 @@
+# Wallet is the only service on 443. The ledger is not routed. ADR-23.
+http:
+  routers:
+    wallet:
+      rule: PathPrefix(`/api`)
+      entryPoints:
+        - websecure
+      middlewares:
+        - strip-api
+        - quota
+      service: wallet
+      tls: {}
+
+  middlewares:
+    strip-api:
+      stripPrefix:
+        prefixes:
+          - /api
+    quota:
+      rateLimit:
+        average: 100
+        burst: 50
+        sourceCriterion:
+          requestHeaderName: Authorization
+
+  services:
+    wallet:
+      loadBalancer:
+        servers:
+          - url: http://wallet:8001

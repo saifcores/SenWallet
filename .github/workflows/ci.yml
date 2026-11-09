@@ -67,6 +67,16 @@ jobs:
         run: |
           curl -fsS http://localhost:8002/actuator/health
           curl -fsS http://localhost:8001/actuator/health
+          curl -kfsS https://localhost/api/actuator/health
+          curl -fsS http://localhost:8080/realms/senwallet/.well-known/openid-configuration | grep -q senwallet
+
+      - name: Unauthenticated calls are rejected
+        run: |
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:8002/ledger_transactions -H 'Content-Type: application/json' -d '{}')" = 401
+          test "$(curl -sk -o /dev/null -w '%{http_code}' -X POST https://localhost/api/transfers -H 'Content-Type: application/json' -H 'Idempotency-Key: 3f1c9a52-7d0e-4b8a-9f21-6c2d5e8a1b44' -d '{}')" = 401
+
+      - name: P2P through the gateway
+        run: bash deploy/smoke-gateway.sh
 
       - name: Show logs
         if: failure()

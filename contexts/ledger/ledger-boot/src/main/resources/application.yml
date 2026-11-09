@@ -19,6 +19,13 @@ spring:
       app_role: ${spring.datasource.username}
   jackson:
     property-naming-strategy: SNAKE_CASE
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/senwallet}
+          audiences:
+            - ledger
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}

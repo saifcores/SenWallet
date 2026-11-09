@@ -28,6 +28,13 @@ class LedgerApiIT extends LedgerIntegrationTest {
     }
 
     @Test
+    void postingWithoutATokenIs401() {
+        var rejected = Api.anonymous(port).post("/ledgers",
+                Map.of("name", "senwallet", "environment", "test"));
+        assertThat(rejected.status()).isEqualTo(401);
+    }
+
+    @Test
     void ledgerAndAccountsCanBeRead() {
         assertThat(api().get("/ledgers/" + ledger).body().get("environment").asString()).isEqualTo("test");
 
