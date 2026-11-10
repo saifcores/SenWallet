@@ -43,8 +43,10 @@ ledger passent par un jeton de service (client credentials).
 
 - L'exemple P2P passe par `https://localhost/api/transfers` avec un jeton
   utilisateur. `curl -k` ignore le certificat auto-signé de Traefik.
-- Dans Compose, l'issuer est `http://keycloak:8080/realms/senwallet`. Les
-  tests Java ont leur propre Keycloak Testcontainers, issuer sur
+- Dans Compose, Keycloak pinne `--hostname=http://localhost:8080` (même
+  `iss` que les jetons obtenus depuis l'hôte). Les services valident cet
+  issuer et chargent les JWKS via `http://keycloak:8080/...`. Les tests
+  Java ont leur propre Keycloak Testcontainers, issuer sur
   `127.0.0.1:<port>`.
 - Les clients `payments-service` et `recon-service` sont dans le realm,
   désactivés jusqu'à M7 / M8.

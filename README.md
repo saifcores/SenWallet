@@ -215,25 +215,25 @@ curl -k https://localhost/api/actuator/health
 >
 > Depuis M4, le même volume crée `wallet_owner` et `wallet_app` (ADR-22) et Compose démarre le wallet sur le port 8001. Un volume créé avant M4 doit être recréé une fois.
 >
-> Depuis M5, Compose démarre Keycloak (realm `senwallet`, issuer `http://keycloak:8080/realms/senwallet`) et Traefik (TLS auto-signé sur 443). `curl -k` ignore le certificat. Les API wallet et ledger exigent un jeton, sauf `POST /customers` et `/actuator/health`.
+> Depuis M5, Compose démarre Keycloak (realm `senwallet`, issuer public `http://localhost:8080/realms/senwallet`) et Traefik (TLS auto-signé sur 443). `curl -k` ignore le certificat. Les API wallet et ledger exigent un jeton, sauf `POST /customers` et `/actuator/health`.
 
 Le contrat de l'API du ledger est dans [`contracts/openapi/ledger.yaml`](contracts/openapi/ledger.yaml).
 
 ### Services locaux
 
-| Conteneur                                                 | Rôle                                          | Port      |
-| --------------------------------------------------------- | --------------------------------------------- | --------- |
-| `gateway`                                                 | Traefik : TLS, routage, quotas                | 443       |
-| `keycloak`                                                | Authentification OIDC                         | 8080      |
-| `wallet`                                                  | Service wallet (jeton `customer` requis)      | 8001      |
+| Conteneur                                                 | Rôle                                                                   | Port      |
+| --------------------------------------------------------- | ---------------------------------------------------------------------- | --------- |
+| `gateway`                                                 | Traefik : TLS, routage, quotas                                         | 443       |
+| `keycloak`                                                | Authentification OIDC                                                  | 8080      |
+| `wallet`                                                  | Service wallet (jeton `customer` requis)                               | 8001      |
 | `ledger`                                                  | Service ledger (jeton de service requis, non exposé par la passerelle) | 8002      |
-| `payments`                                                | Service paiements                             | 8003      |
-| `recon`                                                   | Rapprochement                                 | 8004      |
-| `backoffice`                                              | Interface web interne                         | 3000      |
-| `postgres`                                                | PostgreSQL 16                                 | 5432      |
-| `rabbitmq`                                                | Broker de messages                            | 5672      |
-| `minio`                                                   | Relevés, fichiers, rapports                   | 9000      |
-| `sim-pispi`, `mno-wave`, `mno-orange`, `bank-a`, `bank-b` | Simulateurs                                   | 9101–9105 |
+| `payments`                                                | Service paiements                                                      | 8003      |
+| `recon`                                                   | Rapprochement                                                          | 8004      |
+| `backoffice`                                              | Interface web interne                                                  | 3000      |
+| `postgres`                                                | PostgreSQL 16                                                          | 5432      |
+| `rabbitmq`                                                | Broker de messages                                                     | 5672      |
+| `minio`                                                   | Relevés, fichiers, rapports                                            | 9000      |
+| `sim-pispi`, `mno-wave`, `mno-orange`, `bank-a`, `bank-b` | Simulateurs                                                            | 9101–9105 |
 
 ### Exemple : un transfert P2P
 

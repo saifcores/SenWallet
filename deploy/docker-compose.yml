@@ -42,15 +42,17 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:26.3
     container_name: senwallet-keycloak
+    # Pin hostname to the public URL used by host clients (smoke, README).
+    # Services fetch JWKS/tokens via the internal Docker DNS name.
     command:
       - start-dev
       - --import-realm
       - --http-enabled=true
       - --hostname-strict=false
+      - --hostname=http://localhost:8080
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
-      # KC_HOSTNAME: keycloak
       KC_HOSTNAME_STRICT: "false"
       KC_HTTP_ENABLED: "true"
       KC_HEALTH_ENABLED: "true"
@@ -82,7 +84,8 @@ services:
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_USER: ${RABBITMQ_USER:-senwallet}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-senwallet}
-      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/senwallet
+      KEYCLOAK_ISSUER_URI: http://localhost:8080/realms/senwallet
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/senwallet/protocol/openid-connect/certs
     ports:
       - "8002:8002"
     depends_on:
@@ -113,7 +116,9 @@ services:
       RABBITMQ_USER: ${RABBITMQ_USER:-senwallet}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-senwallet}
       LEDGER_BASE_URL: http://ledger:8002
-      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/senwallet
+      KEYCLOAK_ISSUER_URI: http://localhost:8080/realms/senwallet
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/senwallet/protocol/openid-connect/certs
+      KEYCLOAK_TOKEN_URI: http://keycloak:8080/realms/senwallet/protocol/openid-connect/token
       WALLET_SERVICE_CLIENT_SECRET: ${WALLET_SERVICE_CLIENT_SECRET:-wallet-service-secret}
     ports:
       - "8001:8001"

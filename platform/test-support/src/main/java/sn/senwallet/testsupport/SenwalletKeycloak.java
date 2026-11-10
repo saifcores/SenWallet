@@ -55,6 +55,8 @@ public final class SenwalletKeycloak {
         var properties = new java.util.LinkedHashMap<String, String>();
         properties.put("spring.security.oauth2.resourceserver.jwt.issuer-uri",
                 issuerUri());
+        properties.put("spring.security.oauth2.resourceserver.jwt.jwk-set-uri",
+                issuerUri() + "/protocol/openid-connect/certs");
         properties.put("spring.security.oauth2.resourceserver.jwt.audiences", "ledger");
         properties.putAll(clientProperties());
         return properties;
@@ -65,6 +67,8 @@ public final class SenwalletKeycloak {
         var properties = new java.util.LinkedHashMap<String, String>();
         properties.put("spring.security.oauth2.resourceserver.jwt.issuer-uri",
                 issuerUri());
+        properties.put("spring.security.oauth2.resourceserver.jwt.jwk-set-uri",
+                issuerUri() + "/protocol/openid-connect/certs");
         properties.put("spring.security.oauth2.resourceserver.jwt.audiences", "wallet");
         properties.putAll(clientProperties());
         return properties;
@@ -76,8 +80,8 @@ public final class SenwalletKeycloak {
      */
     public static Map<String, String> clientProperties() {
         return Map.of(
-                "spring.security.oauth2.client.provider.keycloak.issuer-uri",
-                issuerUri(),
+                "spring.security.oauth2.client.provider.keycloak.token-uri",
+                issuerUri() + "/protocol/openid-connect/token",
                 "spring.security.oauth2.client.registration.wallet-service.client-id",
                 SERVICE_CLIENT,
                 "spring.security.oauth2.client.registration.wallet-service.client-secret",
