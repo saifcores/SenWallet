@@ -19,6 +19,16 @@ spring:
       app_role: ${spring.datasource.username}
   jackson:
     property-naming-strategy: SNAKE_CASE
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # iss claim (public URL). jwk-set-uri may point at the Docker
+          # service name so containers do not need to reach localhost.
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/senwallet}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8080/realms/senwallet/protocol/openid-connect/certs}
+          audiences:
+            - ledger
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}

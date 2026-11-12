@@ -11,13 +11,20 @@ info:
       the stored response; a different body is 409 `idempotency_conflict`.
     - Errors are RFC 9457 problem details whose `type` is
       `urn:senwallet:problem:<code>`.
+    - Public entry is `https://localhost/api` (Traefik, self-signed). Direct
+      calls to port 8001 still require a customer bearer token, except
+      `POST /customers`.
 servers:
+  - url: https://localhost/api
   - url: http://localhost:8001
+security:
+  - bearerAuth: []
 
 paths:
   /customers:
     post:
       operationId: registerCustomer
+      security: []
       requestBody:
         required: true
         content:
@@ -122,6 +129,11 @@ paths:
         "422": { $ref: "#/components/responses/Unprocessable" }
 
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   parameters:
     Id:
       name: id

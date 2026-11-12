@@ -7,6 +7,8 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.function.Supplier;
+import sn.senwallet.testsupport.SenwalletKeycloak;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -22,9 +24,19 @@ final class Api {
             .build();
 
     private final String base;
+    private final Supplier<String> token;
 
     Api(int port) {
+        this(port, SenwalletKeycloak::serviceToken);
+    }
+
+    private Api(int port, Supplier<String> token) {
         this.base = "http://localhost:" + port;
+        this.token = token;
+    }
+
+    static Api anonymous(int port) {
+        return new Api(port, null);
     }
 
     Response get(String path) {
@@ -47,7 +59,10 @@ final class Api {
         return body instanceof String text ? text : JSON.writeValueAsString(body);
     }
 
-    private static Response send(HttpRequest.Builder request) {
+    private Response send(HttpRequest.Builder request) {
+        if (token != null) {
+            request.header("Authorization", "Bearer " + token.get());
+        }
         try {
             var response = HTTP.send(request.timeout(Duration.ofSeconds(30)).build(),
                     HttpResponse.BodyHandlers.ofString());

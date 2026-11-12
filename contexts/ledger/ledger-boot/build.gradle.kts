@@ -9,6 +9,7 @@ dependencies {
     implementation(libs.spring.boot.starter.jdbc)
     implementation(libs.spring.boot.starter.flyway)
     implementation(libs.spring.boot.starter.actuator)
+    implementation(libs.spring.boot.starter.oauth2.resource.server)
     implementation(libs.flyway.database.postgresql)
     runtimeOnly(libs.postgresql)
 

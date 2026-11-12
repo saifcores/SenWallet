@@ -14,8 +14,12 @@ info:
       answers 409 `idempotency_conflict`.
     - Errors are RFC 9457 problem details whose `type` is
       `urn:senwallet:problem:<code>`; clients branch on `type` or `code`.
+    - Every operation requires a bearer token issued by the `senwallet`
+      realm for a service client (audience `ledger`). Health is unauthenticated.
 servers:
   - url: http://localhost:8002
+security:
+  - bearerAuth: []
 
 tags:
   - name: ledgers
@@ -221,6 +225,11 @@ paths:
         "422": { $ref: "#/components/responses/Unprocessable" }
 
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   parameters:
     Id:
       name: id
