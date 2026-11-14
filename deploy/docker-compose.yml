@@ -156,5 +156,136 @@ services:
       retries: 10
       start_period: 5s
 
+  # S3-compatible object store for bank statements and (later) settlement files.
+  # Adobe S3Mock keeps local Compose light; swap for MinIO in shared envs.
+  minio:
+    image: adobe/s3mock:4.9.1
+    container_name: senwallet-minio
+    environment:
+      initialBuckets: statements
+    ports:
+      - "9000:9090"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:9090/"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 15s
+
+  # Build jars first:
+  # ./gradlew :simulators:pispi:bootJar :simulators:mno:bootJar :simulators:bank:bootJar
+  sim-pispi:
+    build:
+      context: ../simulators/pispi
+    image: senwallet/pispi:local
+    container_name: senwallet-sim-pispi
+    environment:
+      SERVER_PORT: 9101
+      SIMULATOR_HMAC_SECRET: ${SIMULATOR_HMAC_SECRET:-sim-hmac-secret}
+      CALLBACK_BASE_URL: ${CALLBACK_BASE_URL:-}
+      CALLBACK_PATH: /webhooks/pispi
+    ports:
+      - "9101:9101"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9101/actuator/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 18
+      start_period: 10s
+
+  mno-wave:
+    build:
+      context: ../simulators/mno
+    image: senwallet/mno:local
+    container_name: senwallet-mno-wave
+    environment:
+      SERVER_PORT: 9102
+      SIMULATOR_PROVIDER: wave
+      SIMULATOR_INITIAL_FLOAT: ${MNO_WAVE_FLOAT:-100000000}
+      SIMULATOR_HMAC_SECRET: ${SIMULATOR_HMAC_SECRET:-sim-hmac-secret}
+      CALLBACK_BASE_URL: ${CALLBACK_BASE_URL:-}
+      CALLBACK_PATH: /webhooks/mno
+    ports:
+      - "9102:9102"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9102/actuator/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 18
+      start_period: 10s
+
+  mno-orange:
+    build:
+      context: ../simulators/mno
+    image: senwallet/mno:local
+    container_name: senwallet-mno-orange
+    environment:
+      SERVER_PORT: 9103
+      SIMULATOR_PROVIDER: orange
+      SIMULATOR_INITIAL_FLOAT: ${MNO_ORANGE_FLOAT:-100000000}
+      SIMULATOR_HMAC_SECRET: ${SIMULATOR_HMAC_SECRET:-sim-hmac-secret}
+      CALLBACK_BASE_URL: ${CALLBACK_BASE_URL:-}
+      CALLBACK_PATH: /webhooks/mno
+    ports:
+      - "9103:9103"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9103/actuator/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 18
+      start_period: 10s
+
+  bank-a:
+    build:
+      context: ../simulators/bank
+    image: senwallet/bank:local
+    container_name: senwallet-bank-a
+    environment:
+      SERVER_PORT: 9104
+      SIMULATOR_BANK_NAME: bank-a
+      SIMULATOR_HMAC_SECRET: ${SIMULATOR_HMAC_SECRET:-sim-hmac-secret}
+      # S3Mock listens on 9090 inside the network; host maps 9000→9090.
+      MINIO_ENDPOINT: http://minio:9090
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+      MINIO_BUCKET: statements
+    ports:
+      - "9104:9104"
+    depends_on:
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9104/actuator/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 18
+      start_period: 15s
+
+  bank-b:
+    build:
+      context: ../simulators/bank
+    image: senwallet/bank:local
+    container_name: senwallet-bank-b
+    environment:
+      SERVER_PORT: 9105
+      SIMULATOR_BANK_NAME: bank-b
+      SIMULATOR_HMAC_SECRET: ${SIMULATOR_HMAC_SECRET:-sim-hmac-secret}
+      # S3Mock listens on 9090 inside the network; host maps 9000→9090.
+      MINIO_ENDPOINT: http://minio:9090
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+      MINIO_BUCKET: statements
+    ports:
+      - "9105:9105"
+    depends_on:
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9105/actuator/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 18
+      start_period: 15s
+
 volumes:
   postgres-data:

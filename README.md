@@ -201,12 +201,14 @@ cd SenWallet
 ./gradlew build
 
 # Démarrer l'infrastructure et les services (les jars d'abord)
-./gradlew :contexts:ledger:ledger-boot:bootJar :contexts:wallet:wallet-boot:bootJar
+./gradlew :contexts:ledger:ledger-boot:bootJar :contexts:wallet:wallet-boot:bootJar \
+  :simulators:pispi:bootJar :simulators:mno:bootJar :simulators:bank:bootJar
 cp deploy/.env.example deploy/.env
 docker compose -f deploy/docker-compose.yml up -d --build --wait
 curl http://localhost:8002/actuator/health
 curl http://localhost:8001/actuator/health
 curl -k https://localhost/api/actuator/health
+curl http://localhost:9101/actuator/health
 ```
 
 > Depuis M2, le script d'initialisation crée deux rôles (`ledger_owner`, `ledger_app`, ADR-20). Un volume créé avant M2 doit être recréé une fois : `docker compose -f deploy/docker-compose.yml down -v`.
@@ -216,6 +218,8 @@ curl -k https://localhost/api/actuator/health
 > Depuis M4, le même volume crée `wallet_owner` et `wallet_app` (ADR-22) et Compose démarre le wallet sur le port 8001. Un volume créé avant M4 doit être recréé une fois.
 >
 > Depuis M5, Compose démarre Keycloak (realm `senwallet`, issuer public `http://localhost:8080/realms/senwallet`) et Traefik (TLS auto-signé sur 443). `curl -k` ignore le certificat. Les API wallet et ledger exigent un jeton, sauf `POST /customers` et `/actuator/health`.
+>
+> Depuis M6, Compose démarre un magasin d'objets S3-compatible (port 9000) et cinq simulateurs (9101–9105). Les callbacks partent vers `CALLBACK_BASE_URL` quand il est défini (utilisé par M7).
 
 Le contrat de l'API du ledger est dans [`contracts/openapi/ledger.yaml`](contracts/openapi/ledger.yaml).
 
@@ -232,7 +236,7 @@ Le contrat de l'API du ledger est dans [`contracts/openapi/ledger.yaml`](contrac
 | `backoffice`                                              | Interface web interne                                                  | 3000      |
 | `postgres`                                                | PostgreSQL 16                                                          | 5432      |
 | `rabbitmq`                                                | Broker de messages                                                     | 5672      |
-| `minio`                                                   | Relevés, fichiers, rapports                                            | 9000      |
+| `minio`                                                   | Magasin d'objets S3 (relevés ; S3Mock en local)                        | 9000      |
 | `sim-pispi`, `mno-wave`, `mno-orange`, `bank-a`, `bank-b` | Simulateurs                                                            | 9101–9105 |
 
 ### Exemple : un transfert P2P
@@ -311,7 +315,7 @@ Le projet avance par jalons ; un jalon n'est terminé que lorsque ses tests pass
 | M3    | Outbox, RabbitMQ, contrats d'événements                  | Terminé |
 | M4    | Contexte wallet : KYC, plafonds, frais, P2P              | Terminé |
 | M5    | Passerelle Traefik, Keycloak, jetons de service          | Terminé |
-| M6    | Simulateurs PI-SPI, opérateurs, banques, pannes          | À faire |
+| M6    | Simulateurs PI-SPI, opérateurs, banques, pannes          | Terminé |
 | M7    | Contexte paiements : sagas, inbox, enquêtes de statut    | À faire |
 | M8    | Rapprochement, couverture, dérive                        | À faire |
 | M9    | Back-office, double validation, AML                      | À faire |

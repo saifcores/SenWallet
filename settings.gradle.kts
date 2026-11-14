@@ -33,5 +33,9 @@ include(
     ":contexts:wallet:wallet-application",
     ":contexts:wallet:wallet-infrastructure",
     ":contexts:wallet:wallet-boot",
+    ":simulators:common",
+    ":simulators:pispi",
+    ":simulators:mno",
+    ":simulators:bank",
     ":tests:architecture",
 )
