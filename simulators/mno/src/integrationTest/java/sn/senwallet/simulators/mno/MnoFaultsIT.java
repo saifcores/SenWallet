@@ -12,6 +12,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import okhttp3.mockwebserver.Dispatcher;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
@@ -56,8 +57,14 @@ class MnoFaultsIT {
 
     @BeforeEach
     void reset() throws Exception {
-        while (CALLBACKS.takeRequest(10, TimeUnit.MILLISECONDS) != null) {
-            // drain leftover callbacks
+        // Async callbacks from the previous test may land after it returns;
+        // wait for a quiet window so the next assertion sees only its own.
+        long quietUntil = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(300);
+        while (System.nanoTime() < quietUntil) {
+            RecordedRequest next = CALLBACKS.takeRequest(50, TimeUnit.MILLISECONDS);
+            if (next != null) {
+                quietUntil = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(300);
+            }
         }
         post("/control/float", "{\"available\":1000000}");
     }
@@ -81,12 +88,12 @@ class MnoFaultsIT {
         assertThat(response.statusCode()).isEqualTo(201);
         assertThat(Duration.between(start, Instant.now()).toMillis())
                 .isGreaterThanOrEqualTo(180);
+        takeCallbacks(1);
     }
 
     @Test
     void timeoutThenSuccessSendsSucceededCallback() throws Exception {
         enqueueFault("disbursements", "timeout_then_success", 50, 1);
-        CALLBACKS.enqueue(new MockResponse().setResponseCode(200));
         HttpResponse<String> response = post(
                 "/disbursements",
                 money("+221770000003", 1_000));
@@ -106,7 +113,6 @@ class MnoFaultsIT {
     @Test
     void timeoutThenFailureSendsFailedCallback() throws Exception {
         enqueueFault("disbursements", "timeout_then_failure", 50, 1);
-        CALLBACKS.enqueue(new MockResponse().setResponseCode(200));
         HttpResponse<String> response = post(
                 "/disbursements",
                 money("+221770000004", 1_000));
@@ -124,8 +130,6 @@ class MnoFaultsIT {
     @Test
     void duplicateCallbackDeliversTwice() throws Exception {
         enqueueFault("disbursements", "duplicate_callback", 30, 1);
-        CALLBACKS.enqueue(new MockResponse().setResponseCode(200));
-        CALLBACKS.enqueue(new MockResponse().setResponseCode(200));
         assertThat(post("/disbursements", money("+221770000005", 1_000)).statusCode())
                 .isEqualTo(201);
         List<CapturedCallback> received = takeCallbacks(2);
@@ -135,8 +139,6 @@ class MnoFaultsIT {
     @Test
     void outOfOrderCallbackSendsFailureFirst() throws Exception {
         enqueueFault("disbursements", "out_of_order_callback", 40, 1);
-        CALLBACKS.enqueue(new MockResponse().setResponseCode(200));
-        CALLBACKS.enqueue(new MockResponse().setResponseCode(200));
         assertThat(post("/disbursements", money("+221770000006", 1_000)).statusCode())
                 .isEqualTo(201);
         List<CapturedCallback> received = takeCallbacks(2);
@@ -160,7 +162,6 @@ class MnoFaultsIT {
 
     @Test
     void collectionHappyPathCreditsFloat() throws Exception {
-        CALLBACKS.enqueue(new MockResponse().setResponseCode(200));
         long before = JSON.readTree(get("/float").body()).get("available").asLong();
         HttpResponse<String> response = post(
                 "/collections",
@@ -174,6 +175,14 @@ class MnoFaultsIT {
     private static MockWebServer startCallbacks() {
         try {
             MockWebServer server = new MockWebServer();
+            // Always-200 so leftover async callbacks never block waiting for
+            // an enqueued MockResponse (flake under CI load).
+            server.setDispatcher(new Dispatcher() {
+                @Override
+                public MockResponse dispatch(RecordedRequest request) {
+                    return new MockResponse().setResponseCode(200);
+                }
+            });
             server.start();
             return server;
         } catch (IOException e) {

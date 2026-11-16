@@ -13,6 +13,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import okhttp3.mockwebserver.Dispatcher;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
@@ -55,8 +56,14 @@ class PispiFaultsIT {
 
     @BeforeEach
     void drain() throws InterruptedException {
-        while (CALLBACKS.takeRequest(10, TimeUnit.MILLISECONDS) != null) {
-            // drain
+        // Async callbacks from the previous test may land after it returns;
+        // wait for a quiet window so the next assertion sees only its own.
+        long quietUntil = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(300);
+        while (System.nanoTime() < quietUntil) {
+            RecordedRequest next = CALLBACKS.takeRequest(50, TimeUnit.MILLISECONDS);
+            if (next != null) {
+                quietUntil = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(300);
+            }
         }
     }
 
@@ -75,12 +82,12 @@ class PispiFaultsIT {
                 .isEqualTo(201);
         assertThat(Duration.between(start, Instant.now()).toMillis())
                 .isGreaterThanOrEqualTo(180);
+        takeCallbacks(1);
     }
 
     @Test
     void timeoutThenSuccessCallback() throws Exception {
         enqueueFault("transfers", "timeout_then_success", 40, 1);
-        CALLBACKS.enqueue(new MockResponse().setResponseCode(200));
         HttpResponse<String> response = post("/transfers", transfer("a", "b", 2_000));
         assertThat(response.statusCode()).isEqualTo(201);
         assertThat(JSON.readTree(response.body()).get("status").asString())
@@ -97,7 +104,6 @@ class PispiFaultsIT {
     @Test
     void timeoutThenFailureUpdatesStatusAndCallback() throws Exception {
         enqueueFault("transfers", "timeout_then_failure", 40, 1);
-        CALLBACKS.enqueue(new MockResponse().setResponseCode(200));
         HttpResponse<String> response = post("/transfers", transfer("a", "b", 3_000));
         assertThat(response.statusCode()).isEqualTo(201);
         String id = JSON.readTree(response.body()).get("id").asString();
@@ -111,7 +117,6 @@ class PispiFaultsIT {
 
     @Test
     void inboundFiresSignedWebhookAndSettlementListsIt() throws Exception {
-        CALLBACKS.enqueue(new MockResponse().setResponseCode(200));
         HttpResponse<String> response = post(
                 "/control/inbound",
                 "{\"end_to_end_id\":\"e2e-in-1\",\"debtor_alias\":\"+221770000010\","
@@ -131,6 +136,14 @@ class PispiFaultsIT {
     private static MockWebServer startCallbacks() {
         try {
             MockWebServer server = new MockWebServer();
+            // Always-200 so leftover async callbacks never block waiting for
+            // an enqueued MockResponse (flake under CI load).
+            server.setDispatcher(new Dispatcher() {
+                @Override
+                public MockResponse dispatch(RecordedRequest request) {
+                    return new MockResponse().setResponseCode(200);
+                }
+            });
             server.start();
             return server;
         } catch (IOException e) {
