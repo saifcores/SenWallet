@@ -58,7 +58,14 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
 
       - name: Build the service jars
-        run: ./gradlew :contexts:ledger:ledger-boot:bootJar :contexts:wallet:wallet-boot:bootJar --console=plain
+        run: >
+          ./gradlew
+          :contexts:ledger:ledger-boot:bootJar
+          :contexts:wallet:wallet-boot:bootJar
+          :simulators:pispi:bootJar
+          :simulators:mno:bootJar
+          :simulators:bank:bootJar
+          --console=plain
 
       - name: Start the stack
         run: docker compose -f deploy/docker-compose.yml up -d --build --wait
@@ -69,6 +76,11 @@ jobs:
           curl -fsS http://localhost:8001/actuator/health
           curl -kfsS https://localhost/api/actuator/health
           curl -fsS http://localhost:8080/realms/senwallet/.well-known/openid-configuration | grep -q senwallet
+          curl -fsS http://localhost:9101/actuator/health
+          curl -fsS http://localhost:9102/actuator/health
+          curl -fsS http://localhost:9103/actuator/health
+          curl -fsS http://localhost:9104/actuator/health
+          curl -fsS http://localhost:9105/actuator/health
 
       - name: Unauthenticated calls are rejected
         run: |
