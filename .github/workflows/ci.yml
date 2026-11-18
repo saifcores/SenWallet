@@ -62,6 +62,7 @@ jobs:
           ./gradlew
           :contexts:ledger:ledger-boot:bootJar
           :contexts:wallet:wallet-boot:bootJar
+          :contexts:payments:payments-boot:bootJar
           :simulators:pispi:bootJar
           :simulators:mno:bootJar
           :simulators:bank:bootJar
@@ -74,6 +75,7 @@ jobs:
         run: |
           curl -fsS http://localhost:8002/actuator/health
           curl -fsS http://localhost:8001/actuator/health
+          curl -fsS http://localhost:8003/actuator/health
           curl -kfsS https://localhost/api/actuator/health
           curl -fsS http://localhost:8080/realms/senwallet/.well-known/openid-configuration | grep -q senwallet
           curl -fsS http://localhost:9101/actuator/health

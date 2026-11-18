@@ -52,6 +52,12 @@ class ArchitectureTest {
                         .should().dependOnClassesThat()
                         .resideInAnyPackage("..application..", "..infrastructure..");
 
+        @ArchTest
+        static final ArchRule paymentsDomainIsTheInnermostLayer = noClasses()
+                        .that().resideInAPackage("sn.senwallet.payments.domain..")
+                        .should().dependOnClassesThat()
+                        .resideInAnyPackage("..application..", "..infrastructure..");
+
         /** ADR-13: the ledger uses explicit SQL, never JPA. */
         @ArchTest
         static final ArchRule ledgerHasNoJpa = noClasses()

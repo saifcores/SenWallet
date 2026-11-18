@@ -5,6 +5,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import sn.senwallet.wallet.application.port.in.ChangeTierUseCase;
 import sn.senwallet.wallet.application.port.in.RegisterCustomerUseCase;
 import sn.senwallet.wallet.application.port.in.SendTransferUseCase;
@@ -13,6 +14,7 @@ import sn.senwallet.wallet.application.port.in.WalletQuery;
 import sn.senwallet.wallet.application.port.out.LedgerGateway;
 import sn.senwallet.wallet.application.port.out.PricingCatalog;
 import sn.senwallet.wallet.application.port.out.SmsPort;
+import sn.senwallet.wallet.application.port.out.TierChangeStore;
 import sn.senwallet.wallet.application.port.out.TransferIdempotency;
 import sn.senwallet.wallet.application.port.out.VerifiedCustomerStore;
 import sn.senwallet.wallet.application.port.out.WalletHistoryStore;
@@ -26,6 +28,7 @@ import sn.senwallet.wallet.domain.repository.CustomerRepository;
 import sn.senwallet.wallet.domain.repository.WalletRepository;
 
 @SpringBootApplication
+@EnableScheduling
 public class WalletApplication {
 
     public static void main(String[] args) {
@@ -50,8 +53,13 @@ public class WalletApplication {
         }
 
         @Bean
-        ChangeTierUseCase changeTier(CustomerRepository customers) {
-            return new ChangeTierHandler(customers);
+        Clock clock() {
+            return Clock.systemUTC();
+        }
+
+        @Bean
+        ChangeTierUseCase changeTier(CustomerRepository customers, TierChangeStore tiers) {
+            return new ChangeTierHandler(customers, tiers);
         }
 
         @Bean

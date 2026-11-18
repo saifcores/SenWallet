@@ -23,6 +23,11 @@ public final class SenwalletPostgres {
     public static final String WALLET_OWNER_PASSWORD = "wallet_owner_it";
     public static final String WALLET_APP = "wallet_app";
     public static final String WALLET_APP_PASSWORD = "wallet_app_it";
+    public static final String PAYMENTS_DATABASE = "payments";
+    public static final String PAYMENTS_OWNER = "payments_owner";
+    public static final String PAYMENTS_OWNER_PASSWORD = "payments_owner_it";
+    public static final String PAYMENTS_APP = "payments_app";
+    public static final String PAYMENTS_APP_PASSWORD = "payments_app_it";
 
     private static final PostgreSQLContainer CONTAINER = start();
 
@@ -58,6 +63,16 @@ public final class SenwalletPostgres {
                 "spring.flyway.password", WALLET_OWNER_PASSWORD);
     }
 
+    /** Spring properties for the payments service, same role split as the wallet. */
+    public static Map<String, String> paymentsProperties() {
+        return Map.of(
+                "spring.datasource.url", jdbcUrl(PAYMENTS_DATABASE),
+                "spring.datasource.username", PAYMENTS_APP,
+                "spring.datasource.password", PAYMENTS_APP_PASSWORD,
+                "spring.flyway.user", PAYMENTS_OWNER,
+                "spring.flyway.password", PAYMENTS_OWNER_PASSWORD);
+    }
+
     private static PostgreSQLContainer start() {
         var container = new PostgreSQLContainer("postgres:16")
                 .withUsername("senwallet")
@@ -67,6 +82,8 @@ public final class SenwalletPostgres {
                 .withEnv("LEDGER_DB_PASSWORD", LEDGER_APP_PASSWORD)
                 .withEnv("WALLET_OWNER_PASSWORD", WALLET_OWNER_PASSWORD)
                 .withEnv("WALLET_DB_PASSWORD", WALLET_APP_PASSWORD)
+                .withEnv("PAYMENTS_OWNER_PASSWORD", PAYMENTS_OWNER_PASSWORD)
+                .withEnv("PAYMENTS_DB_PASSWORD", PAYMENTS_APP_PASSWORD)
                 .withCopyFileToContainer(MountableFile.forHostPath(initScripts(), 0755),
                         "/docker-entrypoint-initdb.d/");
         container.start();

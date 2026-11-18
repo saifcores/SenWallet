@@ -12,6 +12,8 @@ services:
       LEDGER_DB_PASSWORD: ${LEDGER_DB_PASSWORD:-ledger_app}
       WALLET_OWNER_PASSWORD: ${WALLET_OWNER_PASSWORD:-wallet_owner}
       WALLET_DB_PASSWORD: ${WALLET_DB_PASSWORD:-wallet_app}
+      PAYMENTS_OWNER_PASSWORD: ${PAYMENTS_OWNER_PASSWORD:-payments_owner}
+      PAYMENTS_DB_PASSWORD: ${PAYMENTS_DB_PASSWORD:-payments_app}
     ports:
       - "5432:5432"
     volumes:
@@ -138,6 +140,46 @@ services:
       retries: 24
       start_period: 15s
 
+  # Build the jar first: ./gradlew :contexts:payments:payments-boot:bootJar
+  payments:
+    build:
+      context: ../contexts/payments/payments-boot
+    image: senwallet/payments:local
+    container_name: senwallet-payments
+    environment:
+      PAYMENTS_DB_HOST: postgres
+      PAYMENTS_DB_PASSWORD: ${PAYMENTS_DB_PASSWORD:-payments_app}
+      PAYMENTS_OWNER_PASSWORD: ${PAYMENTS_OWNER_PASSWORD:-payments_owner}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: ${RABBITMQ_USER:-senwallet}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-senwallet}
+      LEDGER_BASE_URL: http://ledger:8002
+      MNO_WAVE_URL: http://mno-wave:9102
+      MNO_ORANGE_URL: http://mno-orange:9103
+      PISPI_URL: http://sim-pispi:9101
+      SIMULATOR_HMAC_SECRET: ${SIMULATOR_HMAC_SECRET:-sim-hmac-secret}
+      KEYCLOAK_ISSUER_URI: http://localhost:8080/realms/senwallet
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/senwallet/protocol/openid-connect/certs
+      KEYCLOAK_TOKEN_URI: http://keycloak:8080/realms/senwallet/protocol/openid-connect/token
+      PAYMENTS_SERVICE_CLIENT_SECRET: ${PAYMENTS_SERVICE_CLIENT_SECRET:-payments-service-secret}
+    ports:
+      - "8003:8003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      ledger:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8003/actuator/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+      start_period: 20s
+
   gateway:
     image: traefik:v3.3
     container_name: senwallet-gateway
@@ -148,6 +190,8 @@ services:
       - ./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
     depends_on:
       wallet:
+        condition: service_healthy
+      payments:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "traefik", "healthcheck", "--ping"]
@@ -182,7 +226,7 @@ services:
     environment:
       SERVER_PORT: 9101
       SIMULATOR_HMAC_SECRET: ${SIMULATOR_HMAC_SECRET:-sim-hmac-secret}
-      CALLBACK_BASE_URL: ${CALLBACK_BASE_URL:-}
+      CALLBACK_BASE_URL: ${CALLBACK_BASE_URL:-http://payments:8003}
       CALLBACK_PATH: /webhooks/pispi
     ports:
       - "9101:9101"
@@ -203,7 +247,7 @@ services:
       SIMULATOR_PROVIDER: wave
       SIMULATOR_INITIAL_FLOAT: ${MNO_WAVE_FLOAT:-100000000}
       SIMULATOR_HMAC_SECRET: ${SIMULATOR_HMAC_SECRET:-sim-hmac-secret}
-      CALLBACK_BASE_URL: ${CALLBACK_BASE_URL:-}
+      CALLBACK_BASE_URL: ${CALLBACK_BASE_URL:-http://payments:8003}
       CALLBACK_PATH: /webhooks/mno
     ports:
       - "9102:9102"
@@ -224,7 +268,7 @@ services:
       SIMULATOR_PROVIDER: orange
       SIMULATOR_INITIAL_FLOAT: ${MNO_ORANGE_FLOAT:-100000000}
       SIMULATOR_HMAC_SECRET: ${SIMULATOR_HMAC_SECRET:-sim-hmac-secret}
-      CALLBACK_BASE_URL: ${CALLBACK_BASE_URL:-}
+      CALLBACK_BASE_URL: ${CALLBACK_BASE_URL:-http://payments:8003}
       CALLBACK_PATH: /webhooks/mno
     ports:
       - "9103:9103"

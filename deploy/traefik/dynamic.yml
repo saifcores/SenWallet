@@ -1,8 +1,49 @@
-# Wallet is the only service on 443. The ledger is not routed. ADR-23.
+# Customer APIs on 443. Payments routes are more specific than /api. The ledger is not routed. ADR-23.
 http:
   routers:
+    payments-topups:
+      rule: PathPrefix(`/api/topups`)
+      priority: 100
+      entryPoints:
+        - websecure
+      middlewares:
+        - strip-api
+        - quota
+      service: payments
+      tls: {}
+    payments-withdrawals:
+      rule: PathPrefix(`/api/withdrawals`)
+      priority: 100
+      entryPoints:
+        - websecure
+      middlewares:
+        - strip-api
+        - quota
+      service: payments
+      tls: {}
+    payments-pispi:
+      rule: PathPrefix(`/api/pispi-transfers`)
+      priority: 100
+      entryPoints:
+        - websecure
+      middlewares:
+        - strip-api
+        - quota
+      service: payments
+      tls: {}
+    payments-orders:
+      rule: PathPrefix(`/api/payment-orders`)
+      priority: 100
+      entryPoints:
+        - websecure
+      middlewares:
+        - strip-api
+        - quota
+      service: payments
+      tls: {}
     wallet:
       rule: PathPrefix(`/api`)
+      priority: 1
       entryPoints:
         - websecure
       middlewares:
@@ -28,3 +69,7 @@ http:
       loadBalancer:
         servers:
           - url: http://wallet:8001
+    payments:
+      loadBalancer:
+        servers:
+          - url: http://payments:8003

@@ -19,7 +19,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.ClientHttpResponse;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import sn.senwallet.clients.ledger.LedgerDtos.Balances;
@@ -58,8 +58,8 @@ public final class LedgerClient implements AutoCloseable {
     }
 
     public LedgerClient(String baseUrl, Supplier<String> accessToken) {
-        var requests = new SimpleClientHttpRequestFactory();
-        requests.setConnectTimeout(TIMEOUT);
+        var httpClient = java.net.http.HttpClient.newBuilder().connectTimeout(TIMEOUT).build();
+        var requests = new JdkClientHttpRequestFactory(httpClient);
         requests.setReadTimeout(TIMEOUT);
         this.http = RestClient.builder()
                 .baseUrl(baseUrl)
@@ -98,6 +98,14 @@ public final class LedgerClient implements AutoCloseable {
         return withRetry(() -> id(post("/ledger_transactions", request)));
     }
 
+    /** {@code pending -> posted} or {@code pending -> archived}. Already there is a 200. */
+    public void transition(UUID id, String status) {
+        withRetry(() -> {
+            patch("/ledger_transactions/" + id, new LedgerDtos.Transition(status));
+            return Boolean.TRUE;
+        });
+    }
+
     public Transaction getTransaction(UUID id) {
         var tree = get("/ledger_transactions/" + id);
         var entries = new ArrayList<Line>();
@@ -109,7 +117,10 @@ public final class LedgerClient implements AutoCloseable {
                     entry.path("direction").asString(),
                     entry.path("amount").asLong()));
         }
-        return new Transaction(UUID.fromString(tree.path("id").asString()), tree.path("external_id").asString(),
+        return new Transaction(
+                UUID.fromString(tree.path("id").asString()),
+                tree.path("external_id").asString(),
+                tree.path("status").asString(),
                 entries);
     }
 
@@ -141,6 +152,16 @@ public final class LedgerClient implements AutoCloseable {
 
     private JsonNode post(String path, Object body) {
         return exchange(() -> http.post()
+                .uri(path)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(JSON.writeValueAsString(body))
+                .retrieve()
+                .onStatus(HttpStatusCode::isError, LedgerClient::handleError)
+                .body(String.class));
+    }
+
+    private JsonNode patch(String path, Object body) {
+        return exchange(() -> http.patch()
                 .uri(path)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(JSON.writeValueAsString(body))

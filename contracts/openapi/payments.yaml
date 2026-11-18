@@ -1,0 +1,278 @@
+openapi: 3.1.0
+info:
+  title: SenWallet Payments API
+  version: 0.1.0
+  description: >
+    Top-ups, cash-outs and PI-SPI transfers. Customer routes require a
+    Keycloak access token whose audience includes `payments` and whose role
+    is `customer`. Idempotency-Key makes a retried command return the first
+    response. Webhooks are HMAC-signed and are not published on the gateway.
+servers:
+  - url: https://localhost/api
+paths:
+  /topups:
+    post:
+      operationId: startTopup
+      tags: [payments]
+      summary: Collect money from a mobile-money wallet into SenWallet
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentRequest'
+      responses:
+        '201':
+          description: The rail already confirmed the collection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentOrder'
+        '202':
+          description: The hold is placed and the rail outcome is not final
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentOrder'
+        '401':
+          description: Missing or invalid token
+        '409':
+          description: The key was already used for a different command
+        '422':
+          description: The request or the rail rejected the collection
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /withdrawals:
+    post:
+      operationId: startWithdrawal
+      tags: [payments]
+      summary: Cash out from a SenWallet wallet to mobile money
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentRequest'
+      responses:
+        '201':
+          description: The rail already confirmed the disbursement
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentOrder'
+        '202':
+          description: The hold is placed and the rail outcome is not final
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentOrder'
+        '422':
+          description: Rejected, or the available balance cannot cover it
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /pispi-transfers:
+    post:
+      operationId: startPispiTransfer
+      tags: [payments]
+      summary: Send money to a PI-SPI alias
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PispiRequest'
+      responses:
+        '201':
+          description: The transfer is posted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentOrder'
+        '202':
+          description: The hold is placed and the rail outcome is not final
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentOrder'
+        '422':
+          description: Rejected
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /payment-orders/{id}:
+    get:
+      operationId: getPaymentOrder
+      tags: [payments]
+      summary: Read one payment order
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The order
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentOrder'
+        '404':
+          description: Unknown order
+  /webhooks/mno:
+    post:
+      operationId: mnoCallback
+      tags: [webhooks]
+      summary: Signed Wave or Orange callback
+      parameters:
+        - $ref: '#/components/parameters/SignatureTimestamp'
+        - $ref: '#/components/parameters/SignatureNonce'
+        - $ref: '#/components/parameters/Signature'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Accepted, including a duplicate nonce
+        '401':
+          description: Signature, timestamp or nonce rejected
+  /webhooks/pispi:
+    post:
+      operationId: pispiCallback
+      tags: [webhooks]
+      summary: Signed PI-SPI callback, including inbound credits
+      parameters:
+        - $ref: '#/components/parameters/SignatureTimestamp'
+        - $ref: '#/components/parameters/SignatureNonce'
+        - $ref: '#/components/parameters/Signature'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Accepted, including a duplicate nonce
+        '401':
+          description: Signature, timestamp or nonce rejected
+components:
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 200
+    SignatureTimestamp:
+      name: X-Senwallet-Timestamp
+      in: header
+      required: true
+      schema:
+        type: string
+    SignatureNonce:
+      name: X-Senwallet-Nonce
+      in: header
+      required: true
+      schema:
+        type: string
+    Signature:
+      name: X-Senwallet-Signature
+      in: header
+      required: true
+      schema:
+        type: string
+  schemas:
+    PaymentRequest:
+      type: object
+      required: [wallet_id, provider, amount, currency]
+      properties:
+        wallet_id:
+          type: string
+          format: uuid
+        provider:
+          type: string
+          enum: [wave, orange]
+        amount:
+          type: integer
+          minimum: 1
+        currency:
+          type: string
+          enum: [XOF]
+        phone:
+          type: string
+    PispiRequest:
+      type: object
+      required: [wallet_id, amount, currency, creditor_alias]
+      properties:
+        wallet_id:
+          type: string
+          format: uuid
+        amount:
+          type: integer
+          minimum: 1
+        currency:
+          type: string
+          enum: [XOF]
+        creditor_alias:
+          type: string
+    PaymentOrder:
+      type: object
+      required: [id, type, state, amount, fee, currency, provider]
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [topup, cashout, pispi_out, pispi_in]
+        state:
+          type: string
+        wallet_id:
+          type: string
+          format: uuid
+        amount:
+          type: integer
+        fee:
+          type: integer
+        currency:
+          type: string
+        provider:
+          type: string
+        provider_ref:
+          type: string
+        ledger_txn_id:
+          type: string
+          format: uuid
+        attempts:
+          type: integer
+    Problem:
+      type: object
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        code:
+          type: string
+        detail:
+          type: string

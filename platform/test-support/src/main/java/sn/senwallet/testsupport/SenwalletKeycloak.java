@@ -31,6 +31,8 @@ public final class SenwalletKeycloak {
     public static final String CUSTOMER_PASSWORD = "password";
     public static final String SERVICE_CLIENT = "wallet-service";
     public static final String SERVICE_SECRET = "wallet-service-secret";
+    public static final String PAYMENTS_CLIENT = "payments-service";
+    public static final String PAYMENTS_SECRET = "payments-service-secret";
     public static final String WEB_CLIENT = "wallet-web";
 
     private static final HttpClient HTTP = HttpClient.newBuilder()
@@ -71,6 +73,23 @@ public final class SenwalletKeycloak {
                 issuerUri() + "/protocol/openid-connect/certs");
         properties.put("spring.security.oauth2.resourceserver.jwt.audiences", "wallet");
         properties.putAll(clientProperties());
+        return properties;
+    }
+
+    /** Spring properties for the payments resource server and its ledger client. */
+    public static Map<String, String> paymentsProperties() {
+        var properties = new java.util.LinkedHashMap<String, String>();
+        properties.put("spring.security.oauth2.resourceserver.jwt.issuer-uri", issuerUri());
+        properties.put("spring.security.oauth2.resourceserver.jwt.jwk-set-uri",
+                issuerUri() + "/protocol/openid-connect/certs");
+        properties.put("spring.security.oauth2.resourceserver.jwt.audiences", "payments");
+        properties.put("spring.security.oauth2.client.provider.keycloak.token-uri",
+                issuerUri() + "/protocol/openid-connect/token");
+        properties.put("spring.security.oauth2.client.registration.payments-service.client-id", PAYMENTS_CLIENT);
+        properties.put("spring.security.oauth2.client.registration.payments-service.client-secret", PAYMENTS_SECRET);
+        properties.put("spring.security.oauth2.client.registration.payments-service.authorization-grant-type",
+                "client_credentials");
+        properties.put("spring.security.oauth2.client.registration.payments-service.provider", "keycloak");
         return properties;
     }
 

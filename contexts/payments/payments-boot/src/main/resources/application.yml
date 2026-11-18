@@ -1,0 +1,73 @@
+spring:
+  application:
+    name: payments
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    url: jdbc:postgresql://${PAYMENTS_DB_HOST:localhost}:${PAYMENTS_DB_PORT:5432}/payments
+    username: ${PAYMENTS_DB_USER:payments_app}
+    password: ${PAYMENTS_DB_PASSWORD:payments_app}
+    hikari:
+      maximum-pool-size: ${PAYMENTS_DB_POOL_SIZE:10}
+  flyway:
+    locations: classpath:db/payments
+    user: ${PAYMENTS_OWNER_USER:payments_owner}
+    password: ${PAYMENTS_OWNER_PASSWORD:payments_owner}
+    placeholders:
+      app_role: ${spring.datasource.username}
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/senwallet}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8080/realms/senwallet/protocol/openid-connect/certs}
+          audiences:
+            - payments
+      client:
+        registration:
+          payments-service:
+            provider: keycloak
+            client-id: payments-service
+            client-secret: ${PAYMENTS_SERVICE_CLIENT_SECRET:payments-service-secret}
+            authorization-grant-type: client_credentials
+            client-authentication-method: client_secret_basic
+        provider:
+          keycloak:
+            token-uri: ${KEYCLOAK_TOKEN_URI:http://localhost:8080/realms/senwallet/protocol/openid-connect/token}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:senwallet}
+    password: ${RABBITMQ_PASSWORD:senwallet}
+
+server:
+  port: 8003
+
+payments:
+  ledger:
+    base-url: ${LEDGER_BASE_URL:http://localhost:8002}
+  rails:
+    wave-url: ${MNO_WAVE_URL:http://localhost:9102}
+    orange-url: ${MNO_ORANGE_URL:http://localhost:9103}
+    pispi-url: ${PISPI_URL:http://localhost:9101}
+    timeout: ${RAIL_TIMEOUT:10s}
+  webhooks:
+    hmac-secret: ${SIMULATOR_HMAC_SECRET:sim-hmac-secret}
+    max-age: 5m
+  inquiry:
+    delays: ${INQUIRY_DELAYS:PT30S,PT1M,PT2M,PT5M,PT10M}
+  workers:
+    delay: ${PAYMENTS_WORKER_DELAY:1000}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
