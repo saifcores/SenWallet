@@ -44,6 +44,7 @@ spring:
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USER:senwallet}
     password: ${RABBITMQ_PASSWORD:senwallet}
+    publisher-confirm-type: correlated
 
 server:
   port: 8001
@@ -51,6 +52,10 @@ server:
 wallet:
   ledger:
     base-url: ${LEDGER_BASE_URL:http://localhost:8002}
+  outbox:
+    relay-enabled: true
+    delay: 1000
+    batch-size: 100
 
 management:
   endpoints:

@@ -202,11 +202,13 @@ cd SenWallet
 
 # Démarrer l'infrastructure et les services (les jars d'abord)
 ./gradlew :contexts:ledger:ledger-boot:bootJar :contexts:wallet:wallet-boot:bootJar \
+  :contexts:payments:payments-boot:bootJar \
   :simulators:pispi:bootJar :simulators:mno:bootJar :simulators:bank:bootJar
 cp deploy/.env.example deploy/.env
 docker compose -f deploy/docker-compose.yml up -d --build --wait
 curl http://localhost:8002/actuator/health
 curl http://localhost:8001/actuator/health
+curl http://localhost:8003/actuator/health
 curl -k https://localhost/api/actuator/health
 curl http://localhost:9101/actuator/health
 ```
@@ -219,7 +221,9 @@ curl http://localhost:9101/actuator/health
 >
 > Depuis M5, Compose démarre Keycloak (realm `senwallet`, issuer public `http://localhost:8080/realms/senwallet`) et Traefik (TLS auto-signé sur 443). `curl -k` ignore le certificat. Les API wallet et ledger exigent un jeton, sauf `POST /customers` et `/actuator/health`.
 >
-> Depuis M6, Compose démarre un magasin d'objets S3-compatible (port 9000) et cinq simulateurs (9101–9105). Les callbacks partent vers `CALLBACK_BASE_URL` quand il est défini (utilisé par M7).
+> Depuis M6, Compose démarre un magasin d'objets S3-compatible (port 9000) et cinq simulateurs (9101–9105).
+>
+> Depuis M7, le même volume crée `payments_owner` et `payments_app` (ADR-25) et Compose démarre les paiements sur le port 8003. Un volume créé avant M7 doit être recréé une fois. Les callbacks des simulateurs partent vers `http://payments:8003` (`CALLBACK_BASE_URL`). La passerelle route `/api/topups`, `/api/withdrawals`, `/api/pispi-transfers` et `/api/payment-orders` vers ce service ; les webhooks restent hors passerelle.
 
 Le contrat de l'API du ledger est dans [`contracts/openapi/ledger.yaml`](contracts/openapi/ledger.yaml).
 
@@ -316,7 +320,7 @@ Le projet avance par jalons ; un jalon n'est terminé que lorsque ses tests pass
 | M4    | Contexte wallet : KYC, plafonds, frais, P2P              | Terminé |
 | M5    | Passerelle Traefik, Keycloak, jetons de service          | Terminé |
 | M6    | Simulateurs PI-SPI, opérateurs, banques, pannes          | Terminé |
-| M7    | Contexte paiements : sagas, inbox, enquêtes de statut    | À faire |
+| M7    | Contexte paiements : sagas, inbox, enquêtes de statut    | Terminé |
 | M8    | Rapprochement, couverture, dérive                        | À faire |
 | M9    | Back-office, double validation, AML                      | À faire |
 | M10   | Observabilité, charge, reprise après sinistre            | À faire |

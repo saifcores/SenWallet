@@ -15,5 +15,9 @@ dependencies {
     testImplementation(project(":contexts:wallet:wallet-application"))
     testImplementation(project(":contexts:wallet:wallet-infrastructure"))
     testImplementation(project(":contexts:wallet:wallet-boot"))
+    testImplementation(project(":contexts:payments:payments-domain"))
+    testImplementation(project(":contexts:payments:payments-application"))
+    testImplementation(project(":contexts:payments:payments-infrastructure"))
+    testImplementation(project(":contexts:payments:payments-boot"))
     testImplementation(libs.archunit.junit5)
 }

@@ -39,7 +39,10 @@ public final class LedgerDtos {
     public record Line(UUID accountId, String direction, long amount) {
     }
 
-    public record Transaction(UUID id, String externalId, List<Line> entries) {
+    public record Transition(String status) {
+    }
+
+    public record Transaction(UUID id, String externalId, String status, List<Line> entries) {
     }
 
     public record Balances(long posted, long pending, long available) {

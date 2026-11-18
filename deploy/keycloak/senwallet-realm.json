@@ -138,6 +138,18 @@
           }
         },
         {
+          "name": "audience-payments",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "payments",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
           "name": "roles",
           "protocol": "openid-connect",
           "protocolMapper": "oidc-usermodel-realm-role-mapper",
@@ -183,13 +195,29 @@
     {
       "clientId": "payments-service",
       "name": "Payments service",
-      "enabled": false,
+      "enabled": true,
       "publicClient": false,
       "secret": "payments-service-secret",
       "clientAuthenticatorType": "client-secret",
       "protocol": "openid-connect",
       "standardFlowEnabled": false,
-      "serviceAccountsEnabled": true
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "protocolMappers": [
+        {
+          "name": "audience-ledger",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "ledger",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
     },
     {
       "clientId": "recon-service",
